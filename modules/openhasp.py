@@ -6,6 +6,7 @@ ICON_CHECK = "\uE12C"
 ICON_CLOCK_OUTLINE = "\uE150"
 ICON_THERMOMETER = "\uE50F"
 ICON_POWERPLUG = "\uE6A5"
+ICON_LIGHTBULB = "\uE335"
 ICON_LIGHTBULB_ON = "\uE6E8"
 ICON_WALL_SCONCE = "\uE91C"
 ICON_SPREAKER = "\uE4C3"
@@ -20,6 +21,7 @@ logEntityEvents = False
 logMqttEvents = False
 logDiscovery = False
 logOnline = False
+logSendDesign = True
 
 class Link(object):
     pass
@@ -73,10 +75,13 @@ class Obj():
         # Handling an MQTT state update for this object
         if payload == '{"event":"down"}':
             if self.toggleOnPushEntity is not None:
-                value = state.get(self.toggleOnPushEntity)
-                if value == "on": value = "off"
-                elif value == "off": value = "on"
-                state.set(self.toggleOnPushEntity, value)
+                domain, name = self.toggleOnPushEntity.split(".")
+                service.call(domain, "toggle", entity_id=self.toggleOnPushEntity)
+                # value = state.get(self.toggleOnPushEntity)
+                # if value == "on": value = "off"
+                # elif value == "off": value = "on"
+                # state.set(self.toggleOnPushEntity, value)
+
             if self.actionOnPushFunc:
                 self.actionOnPushFunc(self)
 
@@ -116,6 +121,7 @@ class Label(Obj):
         self.setParam("text_color", None, "text.color")
         self.setParam("align", align, "text.align")
 
+        self.fontSize = fontSize
         self.toggleOnPushEntity = None
         self.actionOnPushFunc = None
         self.links = []
@@ -140,16 +146,19 @@ class Label(Obj):
         link.trigger = triggerFactory_entityChange_wCookie(entity, self._onEntityChange, link)
         self.links.append(link)
 
-    def linkColor(self, entity, transform=None):
+    def linkColor(self, entity, param="text_color", transform=None):
         link = Link()
         link.entity = entity
-        link.param = "text_color"
+        link.param = param
         link.transform = transform
         link.trigger = triggerFactory_entityChange_wCookie(entity, self._onEntityChange, link)
         self.links.append(link)
 
 class Button(Label):
     def __init__(self, design, x, y, w, h, text, fontSize, align=None, extraPar=None):
+        self.Button__init__(design, x, y, w, h, text, fontSize, align=None, extraPar=None)
+
+    def Button__init__(self, design, x, y, w, h, text, fontSize, align=None, extraPar=None):
         self.Label__init__(design, x, y, w, h, text, fontSize, align=None, extraPar=None)
         self.params["obj"] = "btn"
 
@@ -159,6 +168,24 @@ class Button(Label):
         self.setParam("radius", None, "btn.radius")
         self.setParam("border_color", None, "btn.border_color")
         self.setParam("border_width", None, "btn.border_width")
+
+    def addIcon(self, icon, x, y):
+        self.setParam("value_str", icon)
+        self.setParam("value_font", self.fontSize)
+        self.setParam("value_ofs_x", x)
+        self.setParam("value_ofs_y", y)
+        self.setParam("value_color", None, "btn.text_color")
+
+
+class OnOffButton(Button):
+    def __init__(self, design, x, y, w, h, text, fontSize, entity, icon=None, align=None, extraPar=None):
+        self.Button__init__(design, x, y, w, h, text, fontSize, align=None, extraPar=None)
+        self.entity = entity
+
+        if icon is not None:
+            self.addIcon(icon, -w//2+fontSize, 0)
+        self.linkColor(entity, param="bg_color", transform=defaultState2ButtonColor)
+        self.toggleOnPush(entity)
 
 
 class Line(Obj):
@@ -219,7 +246,7 @@ class NavButtons():
 
 
 class AnalogClock():
-    def __init__(self, design, cx, cy, r, timeSource="sensor.time", color=None, alarmSource=None, alarmColor=None):
+    def __init__(self, design, cx, cy, r, timeSource="sensor.time", color=None, showSec=False, alarmSource=None, alarmColor=None):
         self.design = design
         self.cx = cx
         self.cy = cy
@@ -267,7 +294,6 @@ class AnalogClock():
         if self.alarmSource is not None:
             try:
                 h,m = state.get(self.alarmSource).split(":")
-                log.info(f" {h} {m}")
                 m = int(m)
                 h = int(h) + m/60
                 r = self.r
@@ -318,7 +344,7 @@ class Manager():
             if payload == "online":
                 if logOnline: log.info(f"Plate {self.name} Online")
                 if (self.designSentTime is None) or (time.time()-self.designSentTime > 5): # Sometimes online event come quickly after one another
-                    if logOnline: log.info(f"Sending design for {self.name}")
+                    if logSendDesign: log.info(f"Sending design to \"{self.name}\"")
                     designSentTime = time.time()
                     self.sendDesign()
                     self.gotoPage(self.startupPage)
@@ -363,6 +389,16 @@ def triggerFactory_mqtt(topic, func):
 
     return func_trig
 
+def defaultState2ButtonColor(design, state):
+    styleId = f"btn.{state}.bg_color"
+    try:
+        color = design.style[styleId]
+    except KeyError:
+        log.warning("style ID \"{styleId}\" not found")
+        color = "White"
+    #log.info(f"state {state} to color {color}")
+    return color
+
 def defaultState2Color(design, state):
     styleId = f"text.{state}.color"
     try:
@@ -370,5 +406,5 @@ def defaultState2Color(design, state):
     except KeyError:
         log.warning("style ID \"{styleId}\" not found")
         color = "White"
-    log.info(f"state {state} to color {color}")
+    #log.info(f"state {state} to color {color}")
     return color
