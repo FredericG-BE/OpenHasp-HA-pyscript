@@ -74,7 +74,7 @@ class Obj():
     def onStateMsg(self, topic, payload):
         # Handling an MQTT state update for this object
         if payload == '{"event":"down"}':
-            if self.toggleOnPushEntity is not None:
+            if hasattr(self, "toggleOnPushEntity"):
                 domain, name = self.toggleOnPushEntity.split(".")
                 service.call(domain, "toggle", entity_id=self.toggleOnPushEntity)
                 # value = state.get(self.toggleOnPushEntity)
@@ -82,7 +82,7 @@ class Obj():
                 # elif value == "off": value = "on"
                 # state.set(self.toggleOnPushEntity, value)
 
-            if self.actionOnPushFunc:
+            if hasattr(self, "actionOnPushFunc"):
                 self.actionOnPushFunc(self)
 
     def _onEntityChange(self, link):
@@ -106,6 +106,19 @@ class Page(Obj):
             self.design.manager.startupPage = pageNbr
 
 
+class EmptyObj(Obj):
+
+    def __init__(self, design, x, y, w, h, extraPar=None):
+        self.Obj__init__(design, "Obj", extraPar)
+        self.setParam("x", x)
+        self.setParam("y", y)
+        self.setParam("w", w)
+        self.setParam("h", h)
+        self.setParam("bg_opa", 0)
+        self.setParam("border_width", 0)
+
+
+
 class Label(Obj):
 
     def __init__(self, design, x, y, w, h, text, fontSize, align=None, extraPar=None):
@@ -122,8 +135,6 @@ class Label(Obj):
         self.setParam("align", align, "text.align")
 
         self.fontSize = fontSize
-        self.toggleOnPushEntity = None
-        self.actionOnPushFunc = None
         self.links = []
 
     def setText(self, value):
@@ -291,9 +302,10 @@ class AnalogClock():
         self.bigHand.setPoints(self._getPoints(m, r*-.1, r*.77))
 
     def _onAlarmChange(self):
+
         if self.alarmSource is not None:
             try:
-                h,m = state.get(self.alarmSource).split(":")
+                h,m = state.get(self.alarmSource).split(":")[:2]
                 m = int(m)
                 h = int(h) + m/60
                 r = self.r
@@ -344,7 +356,7 @@ class Manager():
             if payload == "online":
                 if logOnline: log.info(f"Plate {self.name} Online")
                 if (self.designSentTime is None) or (time.time()-self.designSentTime > 5): # Sometimes online event come quickly after one another
-                    if logSendDesign: log.info(f"Sending design to \"{self.name}\"")
+                    if logSendDesign: log.info(f"Sending design to \"{self.name}\" self={self}")
                     designSentTime = time.time()
                     self.sendDesign()
                     self.gotoPage(self.startupPage)
@@ -394,7 +406,7 @@ def defaultState2ButtonColor(design, state):
     try:
         color = design.style[styleId]
     except KeyError:
-        log.warning("style ID \"{styleId}\" not found")
+        log.warning(f"style ID \"{styleId}\" not found")
         color = "White"
     #log.info(f"state {state} to color {color}")
     return color
@@ -404,7 +416,7 @@ def defaultState2Color(design, state):
     try:
         color = design.style[styleId]
     except KeyError:
-        log.warning("style ID \"{styleId}\" not found")
+        log.warning(f"style ID \"{styleId}\" not found")
         color = "White"
     #log.info(f"state {state} to color {color}")
     return color
