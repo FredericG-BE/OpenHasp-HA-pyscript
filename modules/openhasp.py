@@ -5,11 +5,21 @@ import time
 ICON_CHECK = "\uE12C"
 ICON_CLOCK_OUTLINE = "\uE150"
 ICON_THERMOMETER = "\uE50F"
+ICON_POWERPLUG = "\uE6A5"
+ICON_LIGHTBULB_ON = "\uE6E8"
+ICON_WALL_SCONCE = "\uE91C"
+ICON_SPREAKER = "\uE4C3"
+ICON_HOME = "\uE2DC"
+ICON_HOME_OUTLINE = "\uE6A1"
+ICON_TIMER_OUTLINE = "\uE150"
+ICON_MUSIC = "\uE75A"
+ICON_LIGHTNING_BOLT = "\uF40B"
+ICON_BLINDS = "\uE0AC"
 
-logEntityEvents = True
+logEntityEvents = False
 logMqttEvents = False
-logDiscovery = True
-logOnline = True
+logDiscovery = False
+logOnline = False
 
 class Link(object):
     pass
@@ -81,11 +91,14 @@ class Obj():
 
 class Page(Obj):
 
-    def __init__(self, design, pageNbr, extraPar=None):
+    def __init__(self, design, pageNbr, startupPage=False, extraPar=None):
         self.Obj__init__(design, type=None, extraPar=None)
         self.params["page"] = pageNbr
         self.params["bg_color"] = self.design.style["page.gb_color"]
         self.design.page = pageNbr
+
+        if startupPage:
+            self.design.manager.startupPage = pageNbr
 
 
 class Label(Obj):
@@ -140,10 +153,13 @@ class Button(Label):
         self.Label__init__(design, x, y, w, h, text, fontSize, align=None, extraPar=None)
         self.params["obj"] = "btn"
 
-        self.setParam("bg_color", None, "btn.bg_color")
         self.setParam("text_color", None, "btn.text_color")
-        self.setParam("radius", None, "btn.radius")
         self.setParam("align", None, "btn.align")
+        self.setParam("bg_color", None, "btn.bg_color")
+        self.setParam("radius", None, "btn.radius")
+        self.setParam("border_color", None, "btn.border_color")
+        self.setParam("border_width", None, "btn.border_width")
+
 
 class Line(Obj):
     def __init__(self, design, points, width=None, color=None, extraPar=None):
@@ -186,8 +202,9 @@ class Design():
 class NavButtons():
     def __init__(self, design, w, h, fontsize, tabs):
         self.design = design
-        dx = (design.screenSize[0] - w*(len(tabs))) // (len(tabs)+1)
-        y = design.screenSize[1] - h
+
+        dx = (design.screenSize[0] - w*(len(tabs))) // len(tabs)
+        y = design.screenSize[1] - h - 5
         x = dx // 2
         for tab in tabs:
             obj = Button(design, x, y, w, h, tab[0], fontsize)
@@ -202,12 +219,13 @@ class NavButtons():
 
 
 class AnalogClock():
-    def __init__(self, design, cx, cy, r, timeSource="sensor.time", color=None):
+    def __init__(self, design, cx, cy, r, timeSource="sensor.time", color=None, alarmSource=None, alarmColor=None):
         self.design = design
         self.cx = cx
         self.cy = cy
         self.r = r
-        self.timeSource= timeSource
+        self.timeSource=timeSource
+        self.alarmSource=alarmSource
 
         if color is None:
             color = self.design.style.get("clock.color", None)
@@ -220,14 +238,18 @@ class AnalogClock():
 
         self.smallHand = Line(design, ((cx, cy), (cx, cy)), width=width, color=color)
         self.bigHand = Line(design, ((cx, cy), (cx, cy)), width=width, color=color)
-
-        self.tf = triggerFactory_entityChange(timeSource, self._onTimeChange)
+        self.tfMain = triggerFactory_entityChange(timeSource, self._onTimeChange)
         self._onTimeChange()
 
-        self.design.otherObjs.append(self) # Keep a reference to this object
+        if alarmSource is not None:
+            self.alarmHand = Line(design, ((cx, cy), (cx, cy)), width=(width//2)+1, color=alarmColor)
+            self.tfAlarm = triggerFactory_entityChange(alarmSource, self._onAlarmChange)
+            self._onAlarmChange()
+
+        self.design.otherObjs.append(self) # Keep a reference to this object to keep the references to the trigger functions
 
     def _onTimeChange(self):
-        log.info(f"AnalogClock._onTimeChange self={self}")
+        # log.info(f"AnalogClock._onTimeChange self={self}")
 
         try:
             h,m = state.get(self.timeSource).split(":")
@@ -238,9 +260,23 @@ class AnalogClock():
             r = 0
             h = 0
             m = 0
-
         self.smallHand.setPoints(self._getPoints(h*5, r*-.1, r*.55))
         self.bigHand.setPoints(self._getPoints(m, r*-.1, r*.77))
+
+    def _onAlarmChange(self):
+        if self.alarmSource is not None:
+            try:
+                h,m = state.get(self.alarmSource).split(":")
+                log.info(f" {h} {m}")
+                m = int(m)
+                h = int(h) + m/60
+                r = self.r
+            except:
+                r = 0
+                h = 0
+                m = 0
+            self.alarmHand.setPoints(self._getPoints(h*5, r*-.1, r*.60))
+
 
     def _getPoints(self, min, r1, r2):
         a = min / 60 * 2*3.14
