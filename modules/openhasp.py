@@ -17,11 +17,15 @@ ICON_MUSIC = "\uE75A"
 ICON_LIGHTNING_BOLT = "\uF40B"
 ICON_BLINDS = "\uE0AC"
 
+
 logEntityEvents = False
 logMqttEvents = False
-logDiscovery = False
+logDiscovery = True
 logOnline = False
 logSendDesign = True
+logStaleMessages= True
+
+screenName2manager = {}
 
 class Link(object):
     pass
@@ -99,7 +103,7 @@ class Page(Obj):
     def __init__(self, design, pageNbr, startupPage=False, extraPar=None):
         self.Obj__init__(design, type=None, extraPar=None)
         self.params["page"] = pageNbr
-        self.params["bg_color"] = self.design.style["page.gb_color"]
+        self.setParam("bg_color", None, "page.gb_color")
         self.design.page = pageNbr
 
         if startupPage:
@@ -327,19 +331,32 @@ class Manager():
         self.Manager__init__(name, screenSize)
 
     def Manager__init__(self, name, screenSize, startupPage=1):
+        global screenName2manager
         self.name = name
         self.design = Design(self, screenSize)
         self.startupPage = startupPage
         self.style = {}
         self.designSentTime = None
+        self.instanceId = id(self)
 
-        self.mqttTrigger1 = triggerFactory_mqtt(f"hasp/{self.name}/#",self._onMqttEvt)
-        self.mqttTrigger2 = triggerFactory_mqtt(f"hasp/discovery/#",self._onMqttDiscovery)
+        screenName2manager[name] = self.instanceId
+
+        self.mqttTrigger1 = triggerFactory_mqtt(f"hasp/{self.name}/#",self._onMqttEvt, self.instanceId)
+        self.mqttTrigger2 = triggerFactory_mqtt(f"hasp/discovery/#",self._onMqttDiscovery, self.instanceId)
+
+    def _checkInstanceId(self, id):
+        global screenName2manager
+        if id != screenName2manager[self.name]:
+            if logStaleMessages: log.warning("Received STALE message")
+            return False
+        else:
+            return True
 
     def sendCmd(self, cmd, payload):
         mqtt.publish(topic=f"hasp/{self.name}/command/{cmd}", payload=payload)
 
     def sendDesign(self):
+        if logSendDesign: log.info(f"Sending design to \"{self.name}\" manager={self}")
         self.sendCmd("clearpage", "all")
         for obj in self.design.objs:
             obj.send()
@@ -347,7 +364,10 @@ class Manager():
     def gotoPage(self, page):
         self.sendCmd("page", f"{page}")
 
-    def _onMqttEvt(self, topic, payload):
+    def _onMqttEvt(self, topic, payload, id):
+        if not self._checkInstanceId(id):
+            return
+
         if logMqttEvents: log.info(f"mqtt Msg {topic} {payload}")
 
         topic = topic.split("/")
@@ -356,7 +376,6 @@ class Manager():
             if payload == "online":
                 if logOnline: log.info(f"Plate {self.name} Online")
                 if (self.designSentTime is None) or (time.time()-self.designSentTime > 5): # Sometimes online event come quickly after one another
-                    if logSendDesign: log.info(f"Sending design to \"{self.name}\" self={self}")
                     designSentTime = time.time()
                     self.sendDesign()
                     self.gotoPage(self.startupPage)
@@ -367,8 +386,9 @@ class Manager():
                 except KeyError:
                     pass
 
-    def _onMqttDiscovery(self, topic, payload):
-        if logDiscovery: log.info(f"Discovery {topic} {payload}")
+    def _onMqttDiscovery(self, topic, payload, id):
+        if self._checkInstanceId(id):
+            if logDiscovery: log.info(f"Discovery {topic} {payload}")
         # if json.loads(payload)["node"] == self.name:
         #     self._onMqttDiscoveryReceived(self)
 
@@ -393,11 +413,11 @@ def triggerFactory_entityChange_wCookie(entity, func, cookie):
 
     return func_trig
 
-def triggerFactory_mqtt(topic, func):
+def triggerFactory_mqtt(topic, func, cookie):
 
     @mqtt_trigger(topic)
     def func_trig(topic, payload):
-        func(topic, payload)
+        func(topic, payload, cookie)
 
     return func_trig
 
