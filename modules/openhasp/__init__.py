@@ -228,6 +228,9 @@ class Design():
         self.pageIds = [0]*12
         self.pbs = {}
 
+    def updateStyle(self, style):
+        self.style.update(style)
+
     def addObj(self, obj):
         if type(obj) == Page:
             pass

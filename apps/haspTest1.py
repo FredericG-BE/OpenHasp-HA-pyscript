@@ -1,5 +1,5 @@
 import openhasp as oh
-from openhasp.style1 import style as myStyle
+from openhasp.style3 import style as myStyle
 
 
 def onTestMePushed(obj):
@@ -9,7 +9,8 @@ def onTestMePushed(obj):
 
 manager = oh.Manager("plate_test", (800, 480))
 design = manager.design
-design.style.update(myStyle)
+
+design.updateStyle(myStyle)
 
 oh.Page(design, 1)
 
