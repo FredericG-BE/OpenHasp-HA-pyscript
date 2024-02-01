@@ -88,7 +88,10 @@ class Obj():
             if hasattr(self, "actionOnPushFunc"):
                 self.actionOnPushFunc(self)
 
-    def _onEntityChange(self, link):
+    def _onEntityChange(self, cookie):
+        link = cookie
+        if not self.design.manager._checkInstanceId(link.instanceId):
+            return
         # An entity linked to this object has changed
         if logEntityEvents: log.info(f"_onEntityChange self={self} link={link}")
         value = state.get(link.entity)
@@ -157,7 +160,8 @@ class Label(Obj):
         link.entity = entity
         link.param = "text"
         link.transform = transform
-        link.trigger = triggerFactory_entityChange_wCookie(entity, self._onEntityChange, link)
+        link.instanceId = self.design.manager.instanceId
+        link.trigger = triggerFactory_entityChange(entity, self._onEntityChange, link)
         self.links.append(link)
 
     def linkColor(self, entity, param="text_color", transform=None):
@@ -165,7 +169,8 @@ class Label(Obj):
         link.entity = entity
         link.param = param
         link.transform = transform
-        link.trigger = triggerFactory_entityChange_wCookie(entity, self._onEntityChange, link)
+        link.instanceId = self.design.manager.instanceId
+        link.trigger = triggerFactory_entityChange(entity, self._onEntityChange, link)
         self.links.append(link)
 
 class Button(Label):
@@ -282,17 +287,19 @@ class AnalogClock():
 
         self.smallHand = Line(design, ((cx, cy), (cx, cy)), width=width, color=color)
         self.bigHand = Line(design, ((cx, cy), (cx, cy)), width=width, color=color)
-        self.tfMain = triggerFactory_entityChange(timeSource, self._onTimeChange)
-        self._onTimeChange()
+        self.tfMain = triggerFactory_entityChange(timeSource, self._onTimeChange, self.design.manager.instanceId)
+        self._onTimeChange(self.design.manager.instanceId)
 
         if alarmSource is not None:
             self.alarmHand = Line(design, ((cx, cy), (cx, cy)), width=(width//2)+1, color=alarmColor)
-            self.tfAlarm = triggerFactory_entityChange(alarmSource, self._onAlarmChange)
-            self._onAlarmChange()
+            self.tfAlarm = triggerFactory_entityChange(alarmSource, self._onAlarmChange, self.design.manager.instanceId)
+            self._onAlarmChange(self.design.manager.instanceId)
 
         self.design.otherObjs.append(self) # Keep a reference to this object to keep the references to the trigger functions
 
-    def _onTimeChange(self):
+    def _onTimeChange(self, id):
+        if not self.design.manager._checkInstanceId(id):
+            return
         # log.info(f"AnalogClock._onTimeChange self={self}")
 
         try:
@@ -307,8 +314,9 @@ class AnalogClock():
         self.smallHand.setPoints(self._getPoints(h*5, r*-.1, r*.55))
         self.bigHand.setPoints(self._getPoints(m, r*-.1, r*.77))
 
-    def _onAlarmChange(self):
-
+    def _onAlarmChange(self, id):
+        if not self.design.manager._checkInstanceId(id):
+            return
         if self.alarmSource is not None:
             try:
                 h,m = state.get(self.alarmSource).split(":")[:2]
@@ -395,17 +403,7 @@ class Manager():
         #     self._onMqttDiscoveryReceived(self)
 
 
-def triggerFactory_entityChange(entity, func):
-    if logEntityEvents: log.info(f">> Configure trigger on \"{entity}\" func={func}")
-
-    @state_trigger(entity)
-    def func_trig(value=None):
-        if logEntityEvents: log.info(f">> Triggered on \"{entity}\" change: func={func}")
-        func()
-
-    return func_trig
-
-def triggerFactory_entityChange_wCookie(entity, func, cookie):
+def triggerFactory_entityChange(entity, func, cookie):
     if logEntityEvents: log.info(f">> Configure trigger on \"{entity}\" func={func} cookie={cookie}")
 
     @state_trigger(entity)
