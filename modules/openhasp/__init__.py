@@ -16,6 +16,7 @@ ICON_TIMER_OUTLINE = "\uE150"
 ICON_MUSIC = "\uE75A"
 ICON_LIGHTNING_BOLT = "\uF40B"
 ICON_BLINDS = "\uE0AC"
+ICON_CLOSE = "\uE156"
 
 logEntityEvents = False
 logMqttEvents = False
@@ -90,7 +91,7 @@ class Obj():
 
     def _onEntityChange(self, cookie):
         link = cookie
-        if not self.design.manager._checkInstanceId(link.instanceId):
+        if not self.design.manager._checkInstanceId(link.instanceId, f"EntityChange {link.entity}"):
             return
         # An entity linked to this object has changed
         if logEntityEvents: log.info(f"_onEntityChange self={self} link={link}")
@@ -298,7 +299,7 @@ class AnalogClock():
         self.design.otherObjs.append(self) # Keep a reference to this object to keep the references to the trigger functions
 
     def _onTimeChange(self, id):
-        if not self.design.manager._checkInstanceId(id):
+        if not self.design.manager._checkInstanceId(id, "AnalogClock TimeChange"):
             return
         # log.info(f"AnalogClock._onTimeChange self={self}")
 
@@ -315,7 +316,7 @@ class AnalogClock():
         self.bigHand.setPoints(self._getPoints(m, r*-.1, r*.77))
 
     def _onAlarmChange(self, id):
-        if not self.design.manager._checkInstanceId(id):
+        if not self.design.manager._checkInstanceId(id, "AnalogClock AlarmChange"):
             return
         if self.alarmSource is not None:
             try:
@@ -351,13 +352,14 @@ class Manager():
 
         screenName2manager[name] = self.instanceId
 
-        self.mqttTrigger1 = triggerFactory_mqtt(f"hasp/{self.name}/#",self._onMqttEvt, self.instanceId)
-        self.mqttTrigger2 = triggerFactory_mqtt(f"hasp/discovery/#",self._onMqttDiscovery, self.instanceId)
+        self.mqttTrigger1 = triggerFactory_mqtt(f"hasp/{self.name}/state/#",self._onMqttEvt, self.instanceId)
+        self.mqttTrigger2 = triggerFactory_mqtt(f"hasp/{self.name}/LWT",self._onMqttEvt, self.instanceId)
+        self.mqttTrigger3 = triggerFactory_mqtt(f"hasp/discovery/#",self._onMqttDiscovery, self.instanceId)
 
-    def _checkInstanceId(self, id):
+    def _checkInstanceId(self, id, descr=""):
         global screenName2manager
         if id != screenName2manager[self.name]:
-            if logStaleMessages: log.warning("Received STALE message")
+            if logStaleMessages: log.warning(f"Received STALE message {descr}")
             return False
         else:
             return True
@@ -375,7 +377,7 @@ class Manager():
         self.sendCmd("page", f"{page}")
 
     def _onMqttEvt(self, topic, payload, id):
-        if not self._checkInstanceId(id):
+        if not self._checkInstanceId(id, f"mqttEvnt topic={topic}"):
             return
 
         if logMqttEvents: log.info(f"mqtt Msg {topic} {payload}")
@@ -397,7 +399,7 @@ class Manager():
                     pass
 
     def _onMqttDiscovery(self, topic, payload, id):
-        if self._checkInstanceId(id):
+        if self._checkInstanceId(id, "Discovery"):
             if logDiscovery: log.info(f"Discovery {topic} {payload}")
         # if json.loads(payload)["node"] == self.name:
         #     self._onMqttDiscoveryReceived(self)
