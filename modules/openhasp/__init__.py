@@ -20,10 +20,10 @@ ICON_CLOSE = "\uE156"
 
 logEntityEvents = False
 logMqttEvents = False
-logDiscovery = True
-logOnline = False
+logDiscovery = False
+logOnline = True
 logSendDesign = True
-logStaleMessages= True
+logStaleMessages = False
 
 screenName2manager = {}
 
@@ -64,10 +64,6 @@ class Obj():
     def send(self):
         self.design.manager.sendCmd("jsonl", self.getJsonl())
         self.sent = True
-        # Go over the links for this object so that the correct state
-        if hasattr(self, "links"):
-            for link in self.links:
-                self._onEntityChange(link)
 
     def toggleOnPush(self, entity):
         self.toggleOnPushEntity = entity
@@ -75,19 +71,22 @@ class Obj():
     def actionOnPush(self, func):
         self.actionOnPushFunc = func
 
+    def serviceOnPush(self, domain, name, **kvargs):
+        self.serviceOnPushInfo = (domain, name, kvargs)
+
     def onStateMsg(self, topic, payload):
         # Handling an MQTT state update for this object
         if payload == '{"event":"down"}':
             if hasattr(self, "toggleOnPushEntity"):
                 domain, name = self.toggleOnPushEntity.split(".")
                 service.call(domain, "toggle", entity_id=self.toggleOnPushEntity)
-                # value = state.get(self.toggleOnPushEntity)
-                # if value == "on": value = "off"
-                # elif value == "off": value = "on"
-                # state.set(self.toggleOnPushEntity, value)
 
             if hasattr(self, "actionOnPushFunc"):
                 self.actionOnPushFunc(self)
+
+            if hasattr(self, "serviceOnPushInfo"):
+                log.info(f"self.serviceOnPush: {self.serviceOnPushInfo}")
+                service.call(self.serviceOnPushInfo[0], self.serviceOnPushInfo[1], **self.serviceOnPushInfo[2])
 
     def _onEntityChange(self, cookie):
         link = cookie
@@ -164,6 +163,7 @@ class Label(Obj):
         link.instanceId = self.design.manager.instanceId
         link.trigger = triggerFactory_entityChange(entity, self._onEntityChange, link)
         self.links.append(link)
+        self._onEntityChange(link) # Mimic a change so that the correct value is filled in
 
     def linkColor(self, entity, param="text_color", transform=None):
         link = Link()
@@ -173,6 +173,7 @@ class Label(Obj):
         link.instanceId = self.design.manager.instanceId
         link.trigger = triggerFactory_entityChange(entity, self._onEntityChange, link)
         self.links.append(link)
+        self._onEntityChange(link) # Mimic a change so that the correct value is filled in
 
 class Button(Label):
     def __init__(self, design, x, y, w, h, text, fontSize, align=None, extraPar=None):
@@ -289,12 +290,12 @@ class AnalogClock():
         self.smallHand = Line(design, ((cx, cy), (cx, cy)), width=width, color=color)
         self.bigHand = Line(design, ((cx, cy), (cx, cy)), width=width, color=color)
         self.tfMain = triggerFactory_entityChange(timeSource, self._onTimeChange, self.design.manager.instanceId)
-        self._onTimeChange(self.design.manager.instanceId)
+        self._onTimeChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
 
         if alarmSource is not None:
             self.alarmHand = Line(design, ((cx, cy), (cx, cy)), width=(width//2)+1, color=alarmColor)
             self.tfAlarm = triggerFactory_entityChange(alarmSource, self._onAlarmChange, self.design.manager.instanceId)
-            self._onAlarmChange(self.design.manager.instanceId)
+            self._onAlarmChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
 
         self.design.otherObjs.append(self) # Keep a reference to this object to keep the references to the trigger functions
 
@@ -364,14 +365,32 @@ class Manager():
         else:
             return True
 
+    def sendMsgBox(self, text, autoclose=1000):
+        self.sendCmd("jsonl", "{" + f'"page":1,"id":255,"obj":"msgbox","text":"{text}","auto_close":{autoclose}' + "}")
+
     def sendCmd(self, cmd, payload):
         mqtt.publish(topic=f"hasp/{self.name}/command/{cmd}", payload=payload)
 
     def sendDesign(self):
         if logSendDesign: log.info(f"Sending design to \"{self.name}\" manager={self}")
         self.sendCmd("clearpage", "all")
+        self.sendMsgBox("Receiving design form HA...")
+
+        jsonl = ""
         for obj in self.design.objs:
-            obj.send()
+            n = obj.getJsonl()
+            if len(jsonl)+len(n) > 2000:
+                self.sendCmd("jsonl", jsonl)
+                if logSendDesign: log.info(f"Sending {len(jsonl)} bytes of json")
+                jsonl = n
+            else:
+                jsonl += n + "\r\n"
+            obj.sent = True
+        if len(jsonl) > 0:
+            if logSendDesign: log.info(f"Sending (final) {len(jsonl)} bytes of json")
+            self.sendCmd("jsonl", jsonl)
+
+        self.sendMsgBox("Design Complete")
 
     def gotoPage(self, page):
         self.sendCmd("page", f"{page}")
