@@ -369,7 +369,7 @@ class Manager():
         self.sendCmd("jsonl", "{" + f'"page":1,"id":255,"obj":"msgbox","text":"{text}","auto_close":{autoclose}' + "}")
 
     def sendCmd(self, cmd, payload):
-        mqtt.publish(topic=f"hasp/{self.name}/command/{cmd}", payload=payload)
+        mqtt.publish(topic=f"hasp/{self.name}/command/{cmd}", payload=payload, qos=2)
 
     def sendDesign(self):
         if logSendDesign: log.info(f"Sending design to \"{self.name}\" manager={self}")
