@@ -127,17 +127,17 @@ class EmptyObj(Obj):
 
 class Label(Obj):
 
-    def __init__(self, design, x, y, w, h, text, fontSize, align=None, extraPar=None):
-        self.Label__init__(design, x, y, w, h, text, fontSize, align, extraPar)
+    def __init__(self, design, x, y, w, h, text, fontSize=None, textColor=None, align=None, extraPar=None):
+        self.Label__init__(design, x, y, w, h, text, fontSize, textColor, align, extraPar)
 
 
-    def Label__init__(self, design, x, y, w, h, text, fontSize=None, align=None, extraPar=None):
+    def Label__init__(self, design, x, y, w, h, text, fontSize=None, textColor=None, align=None, extraPar=None):
         self.Obj__init__(design, "label", extraPar)
         self.params.update({"x":x, "y":y, "w":w, "h":h})
         self.params["text"] = text
 
         self.setParam("text_font", fontSize, "text.fontSize")
-        self.setParam("text_color", None, "text.color")
+        self.setParam("text_color", textColor, "text.color")
         self.setParam("align", align, "text.align")
 
         self.fontSize = fontSize
@@ -148,6 +148,9 @@ class Label(Obj):
 
     def getText(self):
         return self.params["text"]
+
+    def setTextColor(self, color):
+         self.setParam("text_color", color)
 
     def setBorder(self, width, radius, color=None):
         self.params["border_width"] = width
