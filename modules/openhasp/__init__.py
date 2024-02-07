@@ -17,6 +17,14 @@ ICON_MUSIC = "\uE75A"
 ICON_LIGHTNING_BOLT = "\uF40B"
 ICON_BLINDS = "\uE0AC"
 ICON_CLOSE = "\uE156"
+ICON_VOLUME_MEDIUM = "\uE580"
+ICON_VOLUME_HIGH = "\uE57E"
+ICON_SKIP_PREVIOUS = "\uE4AE"
+ICON_SKIP_NEXT = "\uE4AD"
+ICON_PLAY = "\uE40A"
+ICON_PAUSE = "\uE3E4"
+
+
 
 logEntityEvents = False
 logMqttEvents = False
@@ -127,11 +135,10 @@ class EmptyObj(Obj):
 
 class Label(Obj):
 
-    def __init__(self, design, x, y, w, h, text, fontSize=None, textColor=None, align=None, extraPar=None):
-        self.Label__init__(design, x, y, w, h, text, fontSize, textColor, align, extraPar)
+    def __init__(self, design, x, y, w, h, text, fontSize=None, textColor=None, align=None, mode=None, extraPar=None):
+        self.Label__init__(design, x, y, w, h, text, fontSize, textColor, align, mode, extraPar)
 
-
-    def Label__init__(self, design, x, y, w, h, text, fontSize=None, textColor=None, align=None, extraPar=None):
+    def Label__init__(self, design, x, y, w, h, text, fontSize=None, textColor=None, align=None, mode=None, extraPar=None):
         self.Obj__init__(design, "label", extraPar)
         self.params.update({"x":x, "y":y, "w":w, "h":h})
         self.params["text"] = text
@@ -139,6 +146,9 @@ class Label(Obj):
         self.setParam("text_font", fontSize, "text.fontSize")
         self.setParam("text_color", textColor, "text.color")
         self.setParam("align", align, "text.align")
+
+        if mode is not None:
+            self.setParam("mode", mode)
 
         self.fontSize = fontSize
         self.links = []
@@ -224,6 +234,16 @@ class Line(Obj):
         self.setParam("points", "[" + ",".join([f"[{a},{b}]" for a,b in points]) + "]")
 
 
+class Image(Obj):
+    def __init__(self, design, coord, size, src):
+        self.Obj__init__(design, "img")
+        self.setParam("x", coord[0])
+        self.setParam("y", coord[1])
+        self.setParam("w", size[0])
+        self.setParam("h", size[1])
+        self.setParam("src", src)  
+
+
 class Design():
     def __init__(self, manager, screenSize, style=None):
         self.manager = manager
@@ -272,6 +292,63 @@ class NavButtons():
         obj.design.manager.gotoPage(obj.pageToGo)
 
 
+class MediaPlayer():
+    def __init__(self, design, player, coord, size):
+        self.design = design
+        self.player = player
+
+        fontsize=60
+
+        x = coord[0]
+        y = coord[1]
+        h = 60
+        dy = 70
+        
+        y = coord[1] + size[1] - 2*dy
+
+        obj = Label(design, x, y, size[0], h, "", mode="loop")
+        obj.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["text.color"])
+        obj.linkText(player+".media_title")
+
+        y += int(h * 1.2)
+
+        dx = 20
+        w = (size[0] - (5*dx)) // 5
+
+        x = coord[0] + dx // 2
+        
+
+        obj = Button(design, x, y, w, h, ICON_VOLUME_MEDIUM, fontsize)
+        obj.serviceOnPush("media_player", "volume_down", entity_id=player)
+        x += w + dx
+
+        obj = Button(design, x, y, w, h, ICON_SKIP_PREVIOUS, fontsize)
+        obj.serviceOnPush("media_player", "media_previous_track", entity_id=player)
+        x += w + dx
+
+        obj = Button(design, x, y, w, h, ICON_PLAY, fontsize)
+        obj.serviceOnPush("media_player", "media_play_pause", entity_id=player)
+        obj.linkText(player, self.playerState2Icon)
+        x += w + dx
+
+        obj = Button(design, x, y, w, h, ICON_SKIP_NEXT, fontsize)
+        obj.serviceOnPush("media_player", "media_next_track", entity_id=player)
+        x += w + dx
+
+        obj = Button(design, x, y, w, h, ICON_VOLUME_HIGH, fontsize)
+        obj.serviceOnPush("media_player", "volume_up", entity_id=player)
+        x += w + dx
+
+    def playerState2Icon(self, design, value):
+        if value == "playing":
+            return ICON_PAUSE
+        else:
+            return ICON_PLAY
+
+    def _onPush(self, obj):
+        #log.info(f"---> On Push {self} {obj}")
+        obj.design.manager.gotoPage(obj.pageToGo)
+    
 class AnalogClock():
     def __init__(self, design, cx, cy, r, timeSource="sensor.time", color=None, showSec=False, alarmSource=None, alarmColor=None):
         self.design = design
