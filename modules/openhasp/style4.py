@@ -4,11 +4,13 @@ PAL_OCHER = "#E55604"
 PAL_LIGHTBLUE = "#647D87"
 
 style = (  {"page.gb_color":       PAL_LIGHTGRAY,
+            "text.fontSize":       40, 
             "text.color":          PAL_OCHER,
             "text.align":          "center",
             "text.on.color":       "Gold",
             "text.off.color":      "Linen",
             "btn.text_color":      "Linen",
+            "btn.fontSize":        30,
             "btn.bg_color":        PAL_LIGHTGRAY,
             "btn.radius":          20,
             "btn.align":           "center",

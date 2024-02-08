@@ -189,13 +189,14 @@ class Label(Obj):
         self._onEntityChange(link) # Mimic a change so that the correct value is filled in
 
 class Button(Label):
-    def __init__(self, design, x, y, w, h, text, fontSize, align=None, extraPar=None):
+    def __init__(self, design, x, y, w, h, text, fontSize=None, align=None, extraPar=None):
         self.Button__init__(design, x, y, w, h, text, fontSize, align=None, extraPar=None)
 
     def Button__init__(self, design, x, y, w, h, text, fontSize, align=None, extraPar=None):
         self.Label__init__(design, x, y, w, h, text, fontSize, align=None, extraPar=None)
         self.params["obj"] = "btn"
 
+        self.setParam("text_font", fontSize, "btn.fontSize")
         self.setParam("text_color", None, "btn.text_color")
         self.setParam("align", None, "btn.align")
         self.setParam("bg_color", None, "btn.bg_color")
@@ -293,31 +294,44 @@ class NavButtons():
 
 
 class MediaPlayer():
-    def __init__(self, design, player, coord, size):
+    def __init__(self, design, name, player, coord, size, volumes=None, sonosSleepTimer=False, favoritesPage=None):
         self.design = design
         self.player = player
+        self.favoritesPage = favoritesPage
 
-        fontsize=60
+        fontsize = None
 
-        x = coord[0]
-        y = coord[1]
+        x,y = coord
         h = 60
+        dx = 20 # space between the buttons
         dy = 70
-        
-        y = coord[1] + size[1] - 2*dy
 
+        obj = Label(design, x, y, size[0], h, name, align="left")
+
+        # Media title
+        y += dy
         obj = Label(design, x, y, size[0], h, "", mode="loop")
         obj.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["text.color"])
         obj.linkText(player+".media_title")
 
-        y += int(h * 1.2)
+        # Volumes
+        if volumes is not None:
+            y += dy
+            w = (size[0] - (len(volumes)-1)*dx) // len(volumes)
+            x = coord[0]
+            for volume in volumes:
+                obj = Button(design, x, y, w, h, ICON_VOLUME_HIGH + f" {volume}%", fontsize)
+                obj.volume = volume
+                obj.player = player
+                obj.actionOnPush(self._onVolumePush)
+                x += w + dx
 
-        dx = 20
-        w = (size[0] - (5*dx)) // 5
-
-        x = coord[0] + dx // 2
+        # Buttons
+        y += dy
+        nbButtons = 5
+        w = (size[0] - (nbButtons-1)*dx) // nbButtons
+        x = coord[0]
         
-
         obj = Button(design, x, y, w, h, ICON_VOLUME_MEDIUM, fontsize)
         obj.serviceOnPush("media_player", "volume_down", entity_id=player)
         x += w + dx
@@ -328,7 +342,7 @@ class MediaPlayer():
 
         obj = Button(design, x, y, w, h, ICON_PLAY, fontsize)
         obj.serviceOnPush("media_player", "media_play_pause", entity_id=player)
-        obj.linkText(player, self.playerState2Icon)
+        obj.linkText(player, self._playerState2Icon)
         x += w + dx
 
         obj = Button(design, x, y, w, h, ICON_SKIP_NEXT, fontsize)
@@ -339,16 +353,85 @@ class MediaPlayer():
         obj.serviceOnPush("media_player", "volume_up", entity_id=player)
         x += w + dx
 
-    def playerState2Icon(self, design, value):
+        nbButtons = 3
+        w = (size[0] - ((nbButtons-1)*dx)) // nbButtons
+        x = coord[0]
+        y += dy
+
+        obj = Button(design, x, y, w, h, "Sleep 15\"", fontsize)
+        obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=15*60)
+        x += w + dx
+
+        obj = Button(design, x, y, w, h, "Sleep 30\"", fontsize)
+        obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=30+60)
+        x += w + dx
+
+        obj = Button(design, x, y, w, h, ICON_MUSIC, fontsize)
+        obj.page = favoritesPage
+        obj.actionOnPush(self._onFavPush)
+        x += w + dx
+
+    def _playerState2Icon(self, design, value):
         if value == "playing":
             return ICON_PAUSE
         else:
             return ICON_PLAY
 
-    def _onPush(self, obj):
-        #log.info(f"---> On Push {self} {obj}")
-        obj.design.manager.gotoPage(obj.pageToGo)
-    
+    def _onFavPush(self, obj):
+        obj.design.manager.gotoPage(obj.page)
+
+    def _onVolumePush(self, obj):
+        service.call("media_player", "volume_set", entity_id=obj.player, volume_level=obj.volume/100)
+
+class SonosFavorites():
+    def __init__(self, design, player, coord, size, favList, returnPage):
+        self.returnPage = returnPage
+        self.favList = favList
+        self.player = player
+
+        x,y = coord
+        fontsize = None
+        h = 60
+        dy = 70
+        dx = 10 # space between the buttons
+        favPerRow = 3
+        w = (size[0] - (favPerRow-1)*dx) // favPerRow
+        rowCnt = 1
+
+        for favShortName in favList:
+            obj = Button(design, x, y, w, h, favShortName, fontsize) 
+            obj.favObj = self
+            obj.actionOnPush(self._onFavPushed)
+            x += w + dx
+            rowCnt += 1
+            if rowCnt > favPerRow:
+                y += dy
+                x = coord[0]
+                rowCnt = 1
+        obj = Button(design, x, y, w, h, ICON_CHECK, fontsize)
+        obj.page = returnPage
+        obj.actionOnPush(self._onDonePush)
+
+    def _onFavPushed(self, obj):
+        favShortName = obj.getText()
+        log.info(f"Fav shortName {favShortName}")
+
+        favName = obj.favObj.favList[favShortName]
+        log.info(f"Fav Name {favName}")
+
+        for id, name in state.get_attr("sensor.sonos_favorites")["items"].items():
+            if name == favName:
+                log.info(f"Fav ID={id}")
+                service.call("media_player", "play_media", entity_id=obj.favObj.player, media_content_type = "favorite_item_id", media_content_id = id)
+                obj.design.manager.gotoPage(obj.favObj.returnPage)
+                return
+            
+        log.warning("Sonos Favorite \"{favName}\" not found")
+        
+    def _onDonePush(self, obj):
+        obj.design.manager.gotoPage(obj.page)
+
+
 class AnalogClock():
     def __init__(self, design, cx, cy, r, timeSource="sensor.time", color=None, showSec=False, alarmSource=None, alarmColor=None):
         self.design = design
@@ -448,12 +531,17 @@ class Manager():
     def sendMsgBox(self, text, autoclose=1000):
         self.sendCmd("jsonl", "{" + f'"page":1,"id":255,"obj":"msgbox","text":"{text}","auto_close":{autoclose}' + "}")
 
+    def setBacklight(self, level):
+        state = "on" if level > 0 else "off"
+        self.sendCmd("backlight", "{" + f'"state":"{state}","brightness":{(level * 256) // 100}'+ "}")
+
     def sendCmd(self, cmd, payload):
         mqtt.publish(topic=f"hasp/{self.name}/command/{cmd}", payload=payload, qos=2)
 
     def sendDesign(self):
         if logSendDesign: log.info(f"Sending design to \"{self.name}\" manager={self}")
         self.sendCmd("clearpage", "all")
+        self.setBacklight(50)
         self.sendMsgBox("Receiving design form HA...")
 
         jsonl = ""

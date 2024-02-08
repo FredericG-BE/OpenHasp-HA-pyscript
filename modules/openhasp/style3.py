@@ -4,6 +4,7 @@ PAL_LIGHTBLUE = "#40A2D8"
 PAL_BEIGE = "#F0EDCF"
 
 style = (  {"page.gb_color":       PAL_BLACK,
+            "text.fontSize":       30,
             "text.color":          PAL_LIGHTBLUE,
             "text.align":          "center",
             "text.on.color":       "Gold",
