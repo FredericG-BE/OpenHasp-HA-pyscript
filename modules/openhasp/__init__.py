@@ -28,9 +28,10 @@ ICON_PAUSE = "\uE3E4"
 
 logEntityEvents = False
 logMqttEvents = False
-logDiscovery = False
+logDiscovery = True
 logOnline = True
 logSendDesign = True
+logSendDesignDetail = False
 logStaleMessages = False
 
 screenName2manager = {}
@@ -529,11 +530,11 @@ class Manager():
             return True
 
     def sendMsgBox(self, text, autoclose=1000):
-        self.sendCmd("jsonl", "{" + f'"page":1,"id":255,"obj":"msgbox","text":"{text}","auto_close":{autoclose}' + "}")
+        self.sendCmd("jsonl", "{" + f'"page":0,"id":255,"obj":"msgbox","text":"{text}","auto_close":{autoclose}' + "}")
 
     def setBacklight(self, level):
         state = "on" if level > 0 else "off"
-        self.sendCmd("backlight", "{" + f'"state":"{state}","brightness":{(level * 256) // 100}'+ "}")
+        self.sendCmd("backlight", "{" + f'"state":"{state}","brightness":{(level * 255) // 100}'+ "}")
 
     def sendCmd(self, cmd, payload):
         mqtt.publish(topic=f"hasp/{self.name}/command/{cmd}", payload=payload, qos=2)
@@ -549,13 +550,13 @@ class Manager():
             n = obj.getJsonl()
             if len(jsonl)+len(n) > 2000:
                 self.sendCmd("jsonl", jsonl)
-                if logSendDesign: log.info(f"Sending {len(jsonl)} bytes of json")
+                if logSendDesignDetail: log.info(f"Sending {len(jsonl)} bytes of json")
                 jsonl = n
             else:
                 jsonl += n + "\r\n"
             obj.sent = True
         if len(jsonl) > 0:
-            if logSendDesign: log.info(f"Sending (final) {len(jsonl)} bytes of json")
+            if logSendDesignDetail: log.info(f"Sending (final) {len(jsonl)} bytes of json")
             self.sendCmd("jsonl", jsonl)
 
         self.sendMsgBox("Design Complete")
@@ -587,9 +588,11 @@ class Manager():
 
     def _onMqttDiscovery(self, topic, payload, id):
         if self._checkInstanceId(id, "Discovery"):
-            if logDiscovery: log.info(f"Discovery {topic} {payload}")
-        # if json.loads(payload)["node"] == self.name:
-        #     self._onMqttDiscoveryReceived(self)
+            payload = json.loads(payload)
+            if payload["node"] == self.name:
+                #self._onMqttDiscoveryReceived(self)
+                if logDiscovery: log.info(f"Discovery {topic} node={payload['node']}")
+        
 
 
 def triggerFactory_entityChange(entity, func, cookie):
