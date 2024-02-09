@@ -23,7 +23,7 @@ ICON_SKIP_PREVIOUS = "\uE4AE"
 ICON_SKIP_NEXT = "\uE4AD"
 ICON_PLAY = "\uE40A"
 ICON_PAUSE = "\uE3E4"
-
+ICON_POWER = "\uE425"
 
 
 logEntityEvents = False
@@ -103,7 +103,11 @@ class Obj():
             return
         # An entity linked to this object has changed
         if logEntityEvents: log.info(f"_onEntityChange self={self} link={link}")
-        value = state.get(link.entity)
+        try:
+            value = state.get(link.entity)
+        except AttributeError:
+            log.warning(f"Failure to read {link.entity}")
+            value = ""
         if link.transform is not None:
             value = link.transform(self.design, value)
         self.setParam(link.param, value)
