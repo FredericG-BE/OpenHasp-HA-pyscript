@@ -513,23 +513,34 @@ class AnalogClock():
         return ((self.cx + int(x*r1),self.cy - int(y*r1)), (self.cx + int(x*r2),self.cy - int(y*r2)))
 
 class Manager():
-    class Statistics:
-        def __init__(self):
-            self.staleMsgCnt = 0
-            self.designSentCnt = 0
+    class State:
+        def __init__(self, entity):
+             self.entity = entity
+             state.set(entity, "unknown")
+
+        def set(self, item, value):
+            state.setattr(f"{self.entity}.{item}", value)
+
+        def inc(self, item):
+            try:
+                value = int(state.getattr(self.entity)[item])
+            except:
+                value = 0 
+            state.setattr(f"{self.entity}.{item}", value+1)
+
 
     def __init__(self, name, screenSize, watchdogActive=False):
         self.Manager__init__(name, screenSize, watchdogActive)
 
-    def Manager__init__(self, name, screenSize, watchdogActive=False, startupPage=1):
+    def Manager__init__(self, name, screenSize, startupPage=1):
         global screenName2manager
-        self.stats = Statistics()
         self.name = name
-        self.watchdogActive = watchdogActive
+        self.sendHeartbeat = False
         self.design = Design(self, screenSize)
         self.startupPage = startupPage
         self.style = {}
         self.designSentTime = None
+        self.state = None
         self.instanceId = id(self)
 
         screenName2manager[name] = self.instanceId
@@ -537,20 +548,29 @@ class Manager():
         self.mqttTrigger1 = triggerFactory_mqtt(f"hasp/{self.name}/state/#",self._onMqttEvt, self.instanceId)
         self.mqttTrigger2 = triggerFactory_mqtt(f"hasp/{self.name}/LWT",self._onMqttEvt, self.instanceId)
         self.mqttTrigger3 = triggerFactory_mqtt(f"hasp/discovery/#",self._onMqttDiscovery, self.instanceId)
-        if watchdogActive:
-            self.timeTrigger = triggerFactory_entityChange("sensor.time", self._onTimeChange, self.design.manager.instanceId)
+            
 
+    def keepState(self, entity=None):
+        if entity is None:
+            entity = f"sensor.{self.name}"
+        self.state = Manager.State(entity)    
+
+    def sendPeriodicHeatbeats(self):
+        self.sendHeartbeat = True
+        self.timeTrigger = triggerFactory_entityChange("sensor.time", self._onTimeChange, self.design.manager.instanceId)
+       
     def _onTimeChange(self, id):
         if not self.design.manager._checkInstanceId(id, "Manager TimeChange"):
             return
-        if self.watchdogActive:
+        if self.sendHeartbeat:
             self.sendHeatbeat()
         
     def _checkInstanceId(self, id, descr=""):
         global screenName2manager
         if id != screenName2manager[self.name]:
             if logStaleMessages: log.warning(f"Received STALE message {descr}")
-            self.stats.staleMsgCnt += 1
+            if self.state is not None:
+                self.state.inc("stale_message")
             return False
         else:
             return True
@@ -571,7 +591,8 @@ class Manager():
     def sendDesign(self):
         if logSendDesign: log.info(f"Sending design to \"{self.name}\" manager={self}")
 
-        self.stats.designSentCnt += 1
+        if self.state is not None:
+            self.state.inc("desing_sent")
 
         self.sendCmd("clearpage", "all")
         self.setBacklight(50)
@@ -623,8 +644,9 @@ class Manager():
             payload = json.loads(payload)
             if payload["node"] == self.name:
                 if logDiscovery: log.info(f"Discovery {topic} node={payload['node']}")
-                self.stats.uri = payload["uri"]
-                self.stats.sw = payload["sw"]
+                if self.state is not None:
+                    self.state.set("uri", payload["uri"])
+                    self.state.set("sw", payload["sw"])
 
 def triggerFactory_entityChange(entity, func, cookie):
     if logEntityEvents: log.info(f">> Configure trigger on \"{entity}\" func={func} cookie={cookie}")
