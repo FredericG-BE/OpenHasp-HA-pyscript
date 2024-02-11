@@ -24,6 +24,7 @@ ICON_SKIP_NEXT = "\uE4AD"
 ICON_PLAY = "\uE40A"
 ICON_PAUSE = "\uE3E4"
 ICON_POWER = "\uE425"
+ICON_LAMP = "\uE6B5"
 
 
 logEntityEvents = False
@@ -299,7 +300,7 @@ class NavButtons():
 
 
 class MediaPlayer():
-    def __init__(self, design, name, player, coord, size, volumes=None, sonosSleepTimer=False, favoritesPage=None):
+    def __init__(self, design, player, coord, size, dispName=None, volumes=None, sonosSleepTimer=False, favoritesPage=None):
         self.design = design
         self.player = player
         self.favoritesPage = favoritesPage
@@ -311,10 +312,11 @@ class MediaPlayer():
         dx = 20 # space between the buttons
         dy = 70
 
-        obj = Label(design, x, y, size[0], h, name, align="left")
+        if dispName is not None:
+            obj = Label(design, x, y, size[0], h, dispName, align="left")
+            y += dy
 
         # Media title
-        y += dy
         obj = Label(design, x, y, size[0], h, "", mode="loop")
         obj.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["text.color"])
         obj.linkText(player+".media_title")
@@ -358,18 +360,22 @@ class MediaPlayer():
         obj.serviceOnPush("media_player", "volume_up", entity_id=player)
         x += w + dx
 
-        nbButtons = 3
+
+        nbButtons = 1
+        if sonosSleepTimer:
+            nbButtons += 2
         w = (size[0] - ((nbButtons-1)*dx)) // nbButtons
         x = coord[0]
         y += dy
 
-        obj = Button(design, x, y, w, h, "Sleep 15\"", fontsize)
-        obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=15*60)
-        x += w + dx
+        if sonosSleepTimer:
+            obj = Button(design, x, y, w, h, "Sleep 15\"", fontsize)
+            obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=15*60)
+            x += w + dx
 
-        obj = Button(design, x, y, w, h, "Sleep 30\"", fontsize)
-        obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=30+60)
-        x += w + dx
+            obj = Button(design, x, y, w, h, "Sleep 30\"", fontsize)
+            obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=30+60)
+            x += w + dx
 
         obj = Button(design, x, y, w, h, ICON_MUSIC, fontsize)
         obj.page = favoritesPage
@@ -507,12 +513,19 @@ class AnalogClock():
         return ((self.cx + int(x*r1),self.cy - int(y*r1)), (self.cx + int(x*r2),self.cy - int(y*r2)))
 
 class Manager():
-    def __init__(self, name, screenSize):
-        self.Manager__init__(name, screenSize)
+    class Statistics:
+        def __init__(self):
+            self.staleMsgCnt = 0
+            self.designSentCnt = 0
 
-    def Manager__init__(self, name, screenSize, startupPage=1):
+    def __init__(self, name, screenSize, watchdogActive=False):
+        self.Manager__init__(name, screenSize, watchdogActive)
+
+    def Manager__init__(self, name, screenSize, watchdogActive=False, startupPage=1):
         global screenName2manager
+        self.stats = Statistics()
         self.name = name
+        self.watchdogActive = watchdogActive
         self.design = Design(self, screenSize)
         self.startupPage = startupPage
         self.style = {}
@@ -524,14 +537,26 @@ class Manager():
         self.mqttTrigger1 = triggerFactory_mqtt(f"hasp/{self.name}/state/#",self._onMqttEvt, self.instanceId)
         self.mqttTrigger2 = triggerFactory_mqtt(f"hasp/{self.name}/LWT",self._onMqttEvt, self.instanceId)
         self.mqttTrigger3 = triggerFactory_mqtt(f"hasp/discovery/#",self._onMqttDiscovery, self.instanceId)
+        if watchdogActive:
+            self.timeTrigger = triggerFactory_entityChange("sensor.time", self._onTimeChange, self.design.manager.instanceId)
 
+    def _onTimeChange(self, id):
+        if not self.design.manager._checkInstanceId(id, "Manager TimeChange"):
+            return
+        if self.watchdogActive:
+            self.sendHeatbeat()
+        
     def _checkInstanceId(self, id, descr=""):
         global screenName2manager
         if id != screenName2manager[self.name]:
             if logStaleMessages: log.warning(f"Received STALE message {descr}")
+            self.stats.staleMsgCnt += 1
             return False
         else:
             return True
+        
+    def sendHeatbeat(self):
+        self.sendCmd("custom/heartbeat")
 
     def sendMsgBox(self, text, autoclose=1000):
         self.sendCmd("jsonl", "{" + f'"page":0,"id":255,"obj":"msgbox","text":"{text}","auto_close":{autoclose}' + "}")
@@ -540,11 +565,14 @@ class Manager():
         state = "on" if level > 0 else "off"
         self.sendCmd("backlight", "{" + f'"state":"{state}","brightness":{(level * 255) // 100}'+ "}")
 
-    def sendCmd(self, cmd, payload):
+    def sendCmd(self, cmd, payload=""):
         mqtt.publish(topic=f"hasp/{self.name}/command/{cmd}", payload=payload, qos=2)
 
     def sendDesign(self):
         if logSendDesign: log.info(f"Sending design to \"{self.name}\" manager={self}")
+
+        self.stats.designSentCnt += 1
+
         self.sendCmd("clearpage", "all")
         self.setBacklight(50)
         self.sendMsgBox("Receiving design form HA...")
@@ -594,10 +622,9 @@ class Manager():
         if self._checkInstanceId(id, "Discovery"):
             payload = json.loads(payload)
             if payload["node"] == self.name:
-                #self._onMqttDiscoveryReceived(self)
                 if logDiscovery: log.info(f"Discovery {topic} node={payload['node']}")
-        
-
+                self.stats.uri = payload["uri"]
+                self.stats.sw = payload["sw"]
 
 def triggerFactory_entityChange(entity, func, cookie):
     if logEntityEvents: log.info(f">> Configure trigger on \"{entity}\" func={func} cookie={cookie}")
