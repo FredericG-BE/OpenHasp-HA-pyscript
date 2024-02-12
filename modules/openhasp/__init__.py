@@ -135,8 +135,7 @@ class EmptyObj(Obj):
         self.setParam("w", w)
         self.setParam("h", h)
         self.setParam("bg_opa", 0)
-        self.setParam("border_width", 0)
-
+        self.setParam("border_side", 0)
 
 
 class Label(Obj):
@@ -289,6 +288,7 @@ class NavButtons():
         x = dx // 2
         for tab in tabs:
             obj = Button(design, x, y, w, h, tab[0], fontsize)
+            obj.setParam("text_color", design.style["nav.active.text_color" if tab[1] == design.page else "nav.text_color"])
             obj.setParam("bg_color", design.style["nav.active.bg_color" if tab[1] == design.page else "nav.bg_color"])
             obj.actionOnPush(self._onPush)
             obj.pageToGo = tab[1]
@@ -505,12 +505,12 @@ class AnalogClock():
                 m = 0
             self.alarmHand.setPoints(self._getPoints(h*5, r*-.1, r*.60))
 
-
     def _getPoints(self, min, r1, r2):
         a = min / 60 * 2*3.14
         x = math.sin(a)
         y = math.cos(a)
         return ((self.cx + int(x*r1),self.cy - int(y*r1)), (self.cx + int(x*r2),self.cy - int(y*r2)))
+
 
 class Manager():
     class State:
