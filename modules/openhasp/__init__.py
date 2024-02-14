@@ -334,7 +334,7 @@ class MediaPlayer():
             y += dy
 
         # Media title
-        obj = Label(design, x, y, size[0], h, "", mode="loop")
+        obj = Label(design, x, y, size[0], h, "",) # mode="loop")
         obj.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["text.color"])
         obj.linkText(player+".media_title")
 
