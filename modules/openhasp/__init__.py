@@ -1,6 +1,7 @@
 import json
 import math
 import time
+import re
 
 ICON_CHECK = "\uE12C"
 ICON_CLOCK_OUTLINE = "\uE150"
@@ -249,6 +250,19 @@ class Image(Obj):
         self.setParam("h", size[1])
         self.setParam("src", src)  
 
+class Switch(Obj):
+    def __init__(self, design, coord, size):
+        self.Obj__init__(design, "switch")
+        self.setParam("x", coord[0])
+        self.setParam("y", coord[1])
+        self.setParam("w", size[0])
+        self.setParam("h", size[1])   
+
+        self.setParam("border_color", None, "switch.border_color")
+        self.setParam("bg_color00", None, "switch.off.bg_color")  
+        self.setParam("bg_color10", None, "switch.on.bg_color")
+        self.setParam("bg_color20", None, "switch.knob_color")
+          
 
 class Design():
     def __init__(self, manager, screenSize, style=None):
@@ -633,11 +647,13 @@ class Manager():
                     self.sendDesign()
                     self.gotoPage(self.startupPage)
         elif topic[2] == "state":
-                pb = topic[3]
-                try:
-                    self.design.pbs[pb].onStateMsg(topic, payload)
-                except KeyError:
-                    pass
+                obj = topic[3]
+                if re.search("p[0-9]+b[0-9]+", obj) is not None:
+                    # it has the pb format
+                    try:
+                        self.design.pbs[obj].onStateMsg(topic, payload)
+                    except KeyError:
+                        log.info(f"MQTT event on unknown pb {pb}")
 
     def _onMqttDiscovery(self, topic, payload, id):
         if self._checkInstanceId(id, "Discovery"):

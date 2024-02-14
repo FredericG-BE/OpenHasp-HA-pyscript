@@ -20,6 +20,11 @@ style = (  {"page.gb_color":       PAL_LIGHTGRAY,
             "btn.on.bg_color":     PAL_BLUE,
             "btn.off.bg_color":    PAL_LIGHTGRAY,
             "btn.unavailable.bg_color": "Red",
+
+            "switch.border_color":  PAL_LIGHTBLUE,
+            "switch.off.bg_color":  PAL_LIGHTGRAY,
+            "switch.on.bg_color":   PAL_OCHER,
+            "switch.knob_color":    PAL_BLUE,
             
             "nav.text_color":       PAL_BLUE,
             "nav.bg_color":         PAL_LIGHTGRAY,
