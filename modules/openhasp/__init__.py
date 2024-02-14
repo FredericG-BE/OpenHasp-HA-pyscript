@@ -26,6 +26,9 @@ ICON_PLAY = "\uE40A"
 ICON_PAUSE = "\uE3E4"
 ICON_POWER = "\uE425"
 ICON_LAMP = "\uE6B5"
+ICON_SILVERWARE_FORK_KNIFE = "\uEA70"
+ICON_COFFEE = "\uE176"
+ICON_TELEVISION = "\uE502"
 
 
 logEntityEvents = False
@@ -653,7 +656,7 @@ class Manager():
                     try:
                         self.design.pbs[obj].onStateMsg(topic, payload)
                     except KeyError:
-                        log.info(f"MQTT event on unknown pb {pb}")
+                        log.info(f"MQTT event on unknown pb {obj}")
 
     def _onMqttDiscovery(self, topic, payload, id):
         if self._checkInstanceId(id, "Discovery"):
