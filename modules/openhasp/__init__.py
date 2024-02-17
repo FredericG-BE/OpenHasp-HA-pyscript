@@ -57,6 +57,7 @@ class Obj():
         #assert isInstance(design, Design)
         self.sent = False # not sent to the device yet
 
+
         # Add this object to the design
         self.design.addObj(self)
 
@@ -212,6 +213,10 @@ class Button(Label):
         self.setParam("radius", None, "btn.radius")
         self.setParam("border_color", None, "btn.border_color")
         self.setParam("border_width", None, "btn.border_width")
+
+        # self.setParam("shadow_width", 15)
+        # self.setParam("shadow_ofs_x", 15)
+        # self.setParam("shadow_ofs_y", 15)
 
     def addIcon(self, icon, x, y):
         self.setParam("value_str", icon)
@@ -531,25 +536,45 @@ class AnalogClock():
 
 class Manager():
     class State:
-        def __init__(self, entity):
+        def __init__(self, entity, enabled):
              self.entity = entity
-             state.set(entity, "unknown")
+             self.enabled = enabled
+             self.state = None
+             self.noActivityCnt = 0
+             self.set("unknown")
 
-        def set(self, item, value):
-            state.setattr(f"{self.entity}.{item}", value)
+        def activityDetected(self):
+            self.noActivityCnt = 0
+            self.set("up")    
 
-        def inc(self, item):
-            try:
-                value = int(state.getattr(self.entity)[item])
-            except:
-                value = 0 
-            state.setattr(f"{self.entity}.{item}", value+1)
+        def tick(self):
+            self.noActivityCnt += 1
+            if self.noActivityCnt > 5:
+                self.set("down")   
+
+        def set(self, value):
+            if self.state != value:
+                self.state = value
+                if self.enabled:
+                    state.set(self.entity, value)
+
+        def setAttr(self, attr, value):
+            if self.enabled:
+                state.setattr(f"{self.entity}.{attr}", value)
+
+        def incAttr(self, attr):
+            if self.enabled:
+                try:
+                    value = int(state.getattr(self.entity)[attr])
+                except:
+                    value = 0 
+                state.setattr(f"{self.entity}.{attr}", value+1)
 
 
-    def __init__(self, name, screenSize, watchdogActive=False):
-        self.Manager__init__(name, screenSize, watchdogActive)
+    def __init__(self, name, screenSize, startupPage=1, keepHAState=False):
+        self.Manager__init__(name, screenSize, startupPage, keepHAState)
 
-    def Manager__init__(self, name, screenSize, startupPage=1):
+    def Manager__init__(self, name, screenSize, startupPage=1, keepHAState=False):
         global screenName2manager
         self.name = name
         self.sendHeartbeat = False
@@ -557,20 +582,15 @@ class Manager():
         self.startupPage = startupPage
         self.style = {}
         self.designSentTime = None
-        self.state = None
+        self.state = Manager.State(f"sensor.{self.name}", keepHAState)    
         self.instanceId = id(self)
 
         screenName2manager[name] = self.instanceId
 
         self.mqttTrigger1 = triggerFactory_mqtt(f"hasp/{self.name}/state/#",self._onMqttEvt, self.instanceId)
         self.mqttTrigger2 = triggerFactory_mqtt(f"hasp/{self.name}/LWT",self._onMqttEvt, self.instanceId)
-        self.mqttTrigger3 = triggerFactory_mqtt(f"hasp/discovery/#",self._onMqttDiscovery, self.instanceId)
-            
-
-    def keepState(self, entity=None):
-        if entity is None:
-            entity = f"sensor.{self.name}"
-        self.state = Manager.State(entity)    
+        #self.mqttTrigger3 = triggerFactory_mqtt(f"hasp/{self.name}/sensors",self._onMqttEvt, self.instanceId)
+        self.mqttTrigger4 = triggerFactory_mqtt(f"hasp/discovery/#",self._onMqttDiscovery, self.instanceId)
 
     def sendPeriodicHeatbeats(self):
         self.sendHeartbeat = True
@@ -581,13 +601,13 @@ class Manager():
             return
         if self.sendHeartbeat:
             self.sendHeatbeat()
+        self.state.tick()
         
     def _checkInstanceId(self, id, descr=""):
         global screenName2manager
         if id != screenName2manager[self.name]:
             if logStaleMessages: log.warning(f"Received STALE message {descr}")
-            if self.state is not None:
-                self.state.inc("stale_message")
+            self.state.incAttr("stale_message")
             return False
         else:
             return True
@@ -608,8 +628,8 @@ class Manager():
     def sendDesign(self):
         if logSendDesign: log.info(f"Sending design to \"{self.name}\" manager={self}")
 
-        if self.state is not None:
-            self.state.inc("desing_sent")
+        self.state.incAttr("desing_sent")
+        self.state.setAttr("stale_message", 0)
 
         self.sendCmd("clearpage", "all")
         self.setBacklight(50)
@@ -645,27 +665,35 @@ class Manager():
         if topic[2] == "LWT":
             if payload == "online":
                 if logOnline: log.info(f"Plate {self.name} Online")
+                self.state.activityDetected()
                 if (self.designSentTime is None) or (time.time()-self.designSentTime > 5): # Sometimes online event come quickly after one another
                     designSentTime = time.time()
                     self.sendDesign()
                     self.gotoPage(self.startupPage)
         elif topic[2] == "state":
                 obj = topic[3]
+                #log.info(f"===> state of obj {obj}")
                 if re.search("p[0-9]+b[0-9]+", obj) is not None:
                     # it has the pb format
                     try:
                         self.design.pbs[obj].onStateMsg(topic, payload)
                     except KeyError:
                         log.info(f"MQTT event on unknown pb {obj}")
+                elif obj == "sensors":
+                    sensors = json.loads(payload)
+                    self.state.activityDetected()
+                    self.state.setAttr("uptime", sensors["uptime"])
+        else:
+            log.info(f"Unexpected topic {topic[2]}")
 
     def _onMqttDiscovery(self, topic, payload, id):
         if self._checkInstanceId(id, "Discovery"):
             payload = json.loads(payload)
             if payload["node"] == self.name:
                 if logDiscovery: log.info(f"Discovery {topic} node={payload['node']}")
-                if self.state is not None:
-                    self.state.set("uri", payload["uri"])
-                    self.state.set("sw", payload["sw"])
+                self.state.activityDetected()
+                self.state.setAttr("uri", payload["uri"])
+                self.state.setAttr("sw", payload["sw"])
 
 def triggerFactory_entityChange(entity, func, cookie):
     if logEntityEvents: log.info(f">> Configure trigger on \"{entity}\" func={func} cookie={cookie}")
