@@ -631,10 +631,12 @@ class Manager():
         self.state.incAttr("desing_sent")
         self.state.setAttr("stale_message", 0)
 
-        self.sendCmd("clearpage", "all")
         self.setBacklight(50)
         self.sendMsgBox("Receiving design form HA...")
-
+        task.sleep(1)
+        self.sendCmd("clearpage", "all")
+        task.sleep(3)
+        
         jsonl = ""
         for obj in self.design.objs:
             n = obj.getJsonl()
@@ -649,6 +651,7 @@ class Manager():
             if logSendDesignDetail: log.info(f"Sending (final) {len(jsonl)} bytes of json")
             self.sendCmd("jsonl", jsonl)
 
+        task.sleep(2)
         self.sendMsgBox("Design Complete")
 
     def gotoPage(self, page):
