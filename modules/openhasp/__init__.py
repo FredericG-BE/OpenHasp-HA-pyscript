@@ -57,21 +57,40 @@ class Obj():
         #assert isInstance(design, Design)
         self.sent = False # not sent to the device yet
 
-
-        # Add this object to the design
+        # Add this object to the design, page and ID will be added there
         self.design.addObj(self)
 
     def getpb(self):
         return f"p{self.params['page']}b{self.params['id']}"
+    
+    def setCoord(self, coord):
+        self.setParam("x", coord[0])
+        self.setParam("y", coord[1])
+
+    def setSize(self, size):
+        self.setParam("w", size[0])
+        self.setParam("h", size[1])
+
+    def setShadow(self, shadow, objType):
+        if shadow is None:
+            shadow = self.design.style.get(objType+".shadow", None)
+
+        if shadow is not None:
+            self.setParam("shadow_color", shadow[0])
+            self.setParam("shadow_opa", shadow[1]) 
+            self.setParam("shadow_width", shadow[2])
+            self.setParam("shadow_ofs_x", shadow[3][0])
+            self.setParam("shadow_ofs_y", shadow[3][1])    
 
     def setParam(self, param, value, styleName=None):
         if value is None:
             # No value provided... can it be found in the style?
             value = self.design.style.get(styleName, None)
-        if value is not None:
-            self.params[param] = value
-            if self.sent:
-                self.design.manager.sendCmd(f"{self.getpb()}.{param}", f"{value}")
+        if value is None:
+            raise Exception(f"Cannot set Param {param}")
+        self.params[param] = value
+        if self.sent:
+            self.design.manager.sendCmd(f"{self.getpb()}.{param}", f"{value}")
 
     def getJsonl(self):
         return json.dumps(self.params)
@@ -133,34 +152,32 @@ class Page(Obj):
 
 class EmptyObj(Obj):
 
-    def __init__(self, design, x, y, w, h, extraPar=None):
+    def __init__(self, design, coord, size, extraPar=None):
         self.Obj__init__(design, "Obj", extraPar)
-        self.setParam("x", x)
-        self.setParam("y", y)
-        self.setParam("w", w)
-        self.setParam("h", h)
+        self.setCoord(coord)
+        self.setSize(size)
         self.setParam("bg_opa", 0)
         self.setParam("border_side", 0)
 
 
 class Label(Obj):
 
-    def __init__(self, design, x, y, w, h, text, fontSize=None, textColor=None, align=None, mode=None, extraPar=None):
-        self.Label__init__(design, x, y, w, h, text, fontSize, textColor, align, mode, extraPar)
+    def __init__(self, design, coord, size, text, font=None, textColor=None, align=None, mode=None, extraPar=None):
+        self.Label__init__(design, coord, size, text, font, textColor, align, mode, extraPar)
 
-    def Label__init__(self, design, x, y, w, h, text, fontSize=None, textColor=None, align=None, mode=None, extraPar=None):
+    def Label__init__(self, design, coord, size, text, font=None, textColor=None, align=None, mode=None, extraPar=None):
         self.Obj__init__(design, "label", extraPar)
-        self.params.update({"x":x, "y":y, "w":w, "h":h})
+        self.setCoord(coord)
+        self.setSize(size)
         self.params["text"] = text
-
-        self.setParam("text_font", fontSize, "text.fontSize")
+        self.setParam("text_font", font, "text.font")
         self.setParam("text_color", textColor, "text.color")
         self.setParam("align", align, "text.align")
 
         if mode is not None:
             self.setParam("mode", mode)
 
-        self.fontSize = fontSize
+        self.font = font
         self.links = []
 
     def setText(self, value):
@@ -173,10 +190,10 @@ class Label(Obj):
          self.setParam("text_color", color)
 
     def setBorder(self, width, radius, color=None):
-        self.params["border_width"] = width
-        self.params["radius"] = radius
+        self.setParam("border_width", width)
+        self.setParam("radius", radius)
         if color is not None:
-            self.params["border_color"] = color
+            self.setParam("border_color", color)
 
     def linkText(self, entity, transform=None):
         link = Link()
@@ -198,15 +215,16 @@ class Label(Obj):
         self.links.append(link)
         self._onEntityChange(link) # Mimic a change so that the correct value is filled in
 
-class Button(Label):
-    def __init__(self, design, x, y, w, h, text, fontSize=None, align=None, extraPar=None):
-        self.Button__init__(design, x, y, w, h, text, fontSize, align=None, extraPar=None)
 
-    def Button__init__(self, design, x, y, w, h, text, fontSize, align=None, extraPar=None):
-        self.Label__init__(design, x, y, w, h, text, fontSize, align=None, extraPar=None)
+class Button(Label):
+    def __init__(self, design, coord, size, text, font=None, align=None, extraPar=None):
+        self.Button__init__(design, coord, size, text, font, align=None, extraPar=None)
+
+    def Button__init__(self, design, coord, size, text, font, align=None, shadow=None, extraPar=None):
+        self.Label__init__(design, coord, size, text, font, align=None, extraPar=None)
         self.params["obj"] = "btn"
 
-        self.setParam("text_font", fontSize, "btn.fontSize")
+        self.setParam("text_font", font, "btn.font")
         self.setParam("text_color", None, "btn.text_color")
         self.setParam("align", None, "btn.align")
         self.setParam("bg_color", None, "btn.bg_color")
@@ -214,25 +232,24 @@ class Button(Label):
         self.setParam("border_color", None, "btn.border_color")
         self.setParam("border_width", None, "btn.border_width")
 
-        # self.setParam("shadow_width", 15)
-        # self.setParam("shadow_ofs_x", 15)
-        # self.setParam("shadow_ofs_y", 15)
+        self.setShadow(shadow, "btn")
+
 
     def addIcon(self, icon, x, y):
         self.setParam("value_str", icon)
-        self.setParam("value_font", self.fontSize)
+        self.setParam("value_font", self.font)
         self.setParam("value_ofs_x", x)
         self.setParam("value_ofs_y", y)
         self.setParam("value_color", None, "btn.text_color")
 
 
 class OnOffButton(Button):
-    def __init__(self, design, x, y, w, h, text, fontSize, entity, icon=None, align=None, extraPar=None):
-        self.Button__init__(design, x, y, w, h, text, fontSize, align=None, extraPar=None)
+    def __init__(self, design, coord, size, text, font, entity, icon=None, align=None, extraPar=None):
+        self.Button__init__(design, coord, size, text, font, align=None, extraPar=None)
         self.entity = entity
 
         if icon is not None:
-            self.addIcon(icon, -w//2+fontSize, 0)
+            self.addIcon(icon, -size[0]//2+font, 0)
         self.linkColor(entity, param="bg_color", transform=defaultState2ButtonColor)
         self.toggleOnPush(entity)
 
@@ -252,20 +269,16 @@ class Line(Obj):
 class Image(Obj):
     def __init__(self, design, coord, size, src):
         self.Obj__init__(design, "img")
-        self.setParam("x", coord[0])
-        self.setParam("y", coord[1])
-        self.setParam("w", size[0])
-        self.setParam("h", size[1])
-        self.setParam("src", src)  
+        self.setCoord(coord)
+        self.setSize(size)
+
 
 class Switch(Obj):
     def __init__(self, design, coord, size):
         self.Obj__init__(design, "switch")
-        self.setParam("x", coord[0])
-        self.setParam("y", coord[1])
-        self.setParam("w", size[0])
-        self.setParam("h", size[1])   
-
+        self.setCoord(coord)
+        self.setSize(size)
+        
         self.setParam("border_color", None, "switch.border_color")
         self.setParam("bg_color00", None, "switch.off.bg_color")  
         self.setParam("bg_color10", None, "switch.on.bg_color")
@@ -301,20 +314,21 @@ class Design():
         self.objs.append(obj)
         return obj
 
+
 class NavButtons():
-    def __init__(self, design, w, h, fontsize, tabs):
+    def __init__(self, design, size, font, tabs):
         self.design = design
 
-        dx = (design.screenSize[0] - w*(len(tabs))) // len(tabs)
-        y = design.screenSize[1] - h - 5
+        dx = (design.screenSize[0] - size[0]*(len(tabs))) // len(tabs)
+        y = design.screenSize[1] - size[1] - 5
         x = dx // 2
         for tab in tabs:
-            obj = Button(design, x, y, w, h, tab[0], fontsize)
+            obj = Button(design, (x, y), size, tab[0], font)
             obj.setParam("text_color", design.style["nav.active.text_color" if tab[1] == design.page else "nav.text_color"])
             obj.setParam("bg_color", design.style["nav.active.bg_color" if tab[1] == design.page else "nav.bg_color"])
             obj.actionOnPush(self._onPush)
             obj.pageToGo = tab[1]
-            x += w + dx
+            x += size[0] + dx
 
     def _onPush(self, obj):
         #log.info(f"---> On Push {self} {obj}")
@@ -327,7 +341,7 @@ class MediaPlayer():
         self.player = player
         self.favoritesPage = favoritesPage
 
-        fontsize = None
+        font = None
 
         x,y = coord
         h = 60
@@ -335,11 +349,11 @@ class MediaPlayer():
         dy = 70
 
         if dispName is not None:
-            obj = Label(design, x, y, size[0], h, dispName, align="left")
+            obj = Label(design, (x, y), (size[0], h), dispName, align="left")
             y += dy
 
         # Media title
-        obj = Label(design, x, y, size[0], h, "",) # mode="loop")
+        obj = Label(design, (x, y), (size[0], h), "",) # mode="loop")
         obj.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["text.color"])
         obj.linkText(player+".media_title")
 
@@ -349,7 +363,7 @@ class MediaPlayer():
             w = (size[0] - (len(volumes)-1)*dx) // len(volumes)
             x = coord[0]
             for volume in volumes:
-                obj = Button(design, x, y, w, h, ICON_VOLUME_HIGH + f" {volume}%", fontsize)
+                obj = Button(design, (x, y), (w, h), ICON_VOLUME_HIGH + f" {volume}%", font)
                 obj.volume = volume
                 obj.player = player
                 obj.actionOnPush(self._onVolumePush)
@@ -361,24 +375,24 @@ class MediaPlayer():
         w = (size[0] - (nbButtons-1)*dx) // nbButtons
         x = coord[0]
         
-        obj = Button(design, x, y, w, h, ICON_VOLUME_MEDIUM, fontsize)
+        obj = Button(design, (x, y), (w, h), ICON_VOLUME_MEDIUM, font)
         obj.serviceOnPush("media_player", "volume_down", entity_id=player)
         x += w + dx
 
-        obj = Button(design, x, y, w, h, ICON_SKIP_PREVIOUS, fontsize)
+        obj = Button(design, (x, y), (w, h), ICON_SKIP_PREVIOUS, font)
         obj.serviceOnPush("media_player", "media_previous_track", entity_id=player)
         x += w + dx
 
-        obj = Button(design, x, y, w, h, ICON_PLAY, fontsize)
+        obj = Button(design, (x, y), (w, h), ICON_PLAY, font)
         obj.serviceOnPush("media_player", "media_play_pause", entity_id=player)
         obj.linkText(player, self._playerState2Icon)
         x += w + dx
 
-        obj = Button(design, x, y, w, h, ICON_SKIP_NEXT, fontsize)
+        obj = Button(design, (x, y), (w, h), ICON_SKIP_NEXT, font)
         obj.serviceOnPush("media_player", "media_next_track", entity_id=player)
         x += w + dx
 
-        obj = Button(design, x, y, w, h, ICON_VOLUME_HIGH, fontsize)
+        obj = Button(design, (x, y), (w, h), ICON_VOLUME_HIGH, font)
         obj.serviceOnPush("media_player", "volume_up", entity_id=player)
         x += w + dx
 
@@ -391,15 +405,15 @@ class MediaPlayer():
         y += dy
 
         if sonosSleepTimer:
-            obj = Button(design, x, y, w, h, "Sleep 15\"", fontsize)
+            obj = Button(design, (x, y), (w, h), "Sleep 15\"", font)
             obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=15*60)
             x += w + dx
 
-            obj = Button(design, x, y, w, h, "Sleep 30\"", fontsize)
+            obj = Button(design, (x, y), (w, h), "Sleep 30\"", font)
             obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=30+60)
             x += w + dx
 
-        obj = Button(design, x, y, w, h, ICON_MUSIC, fontsize)
+        obj = Button(design, (x, y), (w, h), ICON_MUSIC, font)
         obj.page = favoritesPage
         obj.actionOnPush(self._onFavPush)
         x += w + dx
@@ -423,7 +437,7 @@ class SonosFavorites():
         self.player = player
 
         x,y = coord
-        fontsize = None
+        font = None
         h = 60
         dy = 70
         dx = 10 # space between the buttons
@@ -432,7 +446,7 @@ class SonosFavorites():
         rowCnt = 1
 
         for favShortName in favList:
-            obj = Button(design, x, y, w, h, favShortName, fontsize) 
+            obj = Button(design, (x, y), (w, h), favShortName, font) 
             obj.favObj = self
             obj.actionOnPush(self._onFavPushed)
             x += w + dx
@@ -441,7 +455,7 @@ class SonosFavorites():
                 y += dy
                 x = coord[0]
                 rowCnt = 1
-        obj = Button(design, x, y, w, h, ICON_CHECK, fontsize)
+        obj = Button(design, (x, y), (w, h), ICON_CHECK, font)
         obj.page = returnPage
         obj.actionOnPush(self._onDonePush)
 
@@ -466,10 +480,9 @@ class SonosFavorites():
 
 
 class AnalogClock():
-    def __init__(self, design, cx, cy, r, timeSource="sensor.time", color=None, showSec=False, alarmSource=None, alarmColor=None):
+    def __init__(self, design, center, r, timeSource="sensor.time", color=None, showSec=False, alarmSource=None, alarmColor=None):
         self.design = design
-        self.cx = cx
-        self.cy = cy
+        self.center = center
         self.r = r
         self.timeSource=timeSource
         self.alarmSource=alarmSource
@@ -483,13 +496,13 @@ class AnalogClock():
             points = self._getPoints(m, .8*r if m % 15 == 0 else .9*r, r)
             Line(design, points, width=width, color=color)
 
-        self.smallHand = Line(design, ((cx, cy), (cx, cy)), width=width, color=color)
-        self.bigHand = Line(design, ((cx, cy), (cx, cy)), width=width, color=color)
+        self.smallHand = Line(design, (center, center), width=width, color=color)
+        self.bigHand = Line(design, (center, center), width=width, color=color)
         self.tfMain = triggerFactory_entityChange(timeSource, self._onTimeChange, self.design.manager.instanceId)
         self._onTimeChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
 
         if alarmSource is not None:
-            self.alarmHand = Line(design, ((cx, cy), (cx, cy)), width=(width//2)+1, color=alarmColor)
+            self.alarmHand = Line(design, (center, center), width=(width//2)+1, color=alarmColor)
             self.tfAlarm = triggerFactory_entityChange(alarmSource, self._onAlarmChange, self.design.manager.instanceId)
             self._onAlarmChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
 
@@ -498,8 +511,6 @@ class AnalogClock():
     def _onTimeChange(self, id):
         if not self.design.manager._checkInstanceId(id, "AnalogClock TimeChange"):
             return
-        # log.info(f"AnalogClock._onTimeChange self={self}")
-
         try:
             h,m = state.get(self.timeSource).split(":")
             m = int(m)
@@ -531,7 +542,7 @@ class AnalogClock():
         a = min / 60 * 2*3.14
         x = math.sin(a)
         y = math.cos(a)
-        return ((self.cx + int(x*r1),self.cy - int(y*r1)), (self.cx + int(x*r2),self.cy - int(y*r2)))
+        return ((self.center[0] + int(x*r1),self.center[1] - int(y*r1)), (self.center[0] + int(x*r2),self.center[1] - int(y*r2)))
 
 
 class Manager():
@@ -589,8 +600,7 @@ class Manager():
 
         self.mqttTrigger1 = triggerFactory_mqtt(f"hasp/{self.name}/state/#",self._onMqttEvt, self.instanceId)
         self.mqttTrigger2 = triggerFactory_mqtt(f"hasp/{self.name}/LWT",self._onMqttEvt, self.instanceId)
-        #self.mqttTrigger3 = triggerFactory_mqtt(f"hasp/{self.name}/sensors",self._onMqttEvt, self.instanceId)
-        self.mqttTrigger4 = triggerFactory_mqtt(f"hasp/discovery/#",self._onMqttDiscovery, self.instanceId)
+        self.mqttTrigger3 = triggerFactory_mqtt(f"hasp/discovery/#",self._onMqttDiscovery, self.instanceId)
 
     def sendPeriodicHeatbeats(self):
         self.sendHeartbeat = True
@@ -632,7 +642,7 @@ class Manager():
         self.state.setAttr("stale_message", 0)
 
         self.setBacklight(50)
-        self.sendMsgBox("Receiving design form HA...")
+        self.sendMsgBox("Receiving design form HA...", 10000)
         task.sleep(1)
         self.sendCmd("clearpage", "all")
         task.sleep(3)

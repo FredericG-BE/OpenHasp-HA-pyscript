@@ -5,14 +5,14 @@ PAL_BEIGE = "#F0EDCF"
 
 style = (  {"page.gb_color":       PAL_BLACK,
             
-            "text.fontSize":       30,
+            "text.font":       30,
             "text.color":          PAL_LIGHTBLUE,
             "text.align":          "center",
             "text.on.color":       "Gold",
             "text.off.color":      "Linen",
             
             "btn.text_color":      "Linen",
-            "btn.fontSize":        30,
+            "btn.font":        30,
             "btn.bg_color":        PAL_BLACK,
             "btn.radius":          20,
             "btn.align":           "center",
