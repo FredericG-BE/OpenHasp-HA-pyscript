@@ -296,7 +296,7 @@ class Design():
         self.screenBackgroundColor = "Black"
         self.objs = []  # These are HASP objects that are displayed
         self.otherObjs = [] # Objects that are no HAPS objects but for which a reference needs to be kept
-        self.pageIds = [0]*12
+        self.pageIds = [0]*13
         self.pbs = {}
 
     def updateStyle(self, style):
@@ -605,7 +605,17 @@ class Manager():
     def sendPeriodicHeatbeats(self):
         self.sendHeartbeat = True
         self.timeTrigger = triggerFactory_entityChange("sensor.time", self._onTimeChange, self.design.manager.instanceId)
-       
+
+    def setMontionSensor(self, entity):
+        self.montionSensorEntity = entity
+        self.montionSensorTrigger = triggerFactory_entityChange(entity, self._onMotionSensor, self.instanceId)
+          
+    def _onMotionSensor(self, id):
+        if not self.design.manager._checkInstanceId(id, "MontionSensor"):
+            return
+        if state.get(self.montionSensorEntity) == "on":
+            self.sendIdle("off")
+    
     def _onTimeChange(self, id):
         if not self.design.manager._checkInstanceId(id, "Manager TimeChange"):
             return
@@ -632,6 +642,9 @@ class Manager():
         state = "on" if level > 0 else "off"
         self.sendCmd("backlight", "{" + f'"state":"{state}","brightness":{(level * 255) // 100}'+ "}")
 
+    def sendIdle(self, state):
+        self.sendCmd("idle", state)
+
     def sendCmd(self, cmd, payload=""):
         mqtt.publish(topic=f"hasp/{self.name}/command/{cmd}", payload=payload, qos=2)
 
@@ -641,7 +654,7 @@ class Manager():
         self.state.incAttr("desing_sent")
         self.state.setAttr("stale_message", 0)
 
-        self.setBacklight(50)
+        self.sendIdle("off")
         self.sendMsgBox("Receiving design form HA...", 10000)
         task.sleep(1)
         self.sendCmd("clearpage", "all")
