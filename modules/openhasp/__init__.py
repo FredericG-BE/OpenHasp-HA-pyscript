@@ -1,6 +1,7 @@
 import json
 import math
 import time
+import re
 
 ICON_CHECK = "\uE12C"
 ICON_CLOCK_OUTLINE = "\uE150"
@@ -25,6 +26,9 @@ ICON_PLAY = "\uE40A"
 ICON_PAUSE = "\uE3E4"
 ICON_POWER = "\uE425"
 ICON_LAMP = "\uE6B5"
+ICON_SILVERWARE_FORK_KNIFE = "\uEA70"
+ICON_COFFEE = "\uE176"
+ICON_TELEVISION = "\uE502"
 
 
 logEntityEvents = False
@@ -52,6 +56,7 @@ class Obj():
             self.params.update(extraPar)
         #assert isInstance(design, Design)
         self.sent = False # not sent to the device yet
+
 
         # Add this object to the design
         self.design.addObj(self)
@@ -135,8 +140,7 @@ class EmptyObj(Obj):
         self.setParam("w", w)
         self.setParam("h", h)
         self.setParam("bg_opa", 0)
-        self.setParam("border_width", 0)
-
+        self.setParam("border_side", 0)
 
 
 class Label(Obj):
@@ -210,6 +214,10 @@ class Button(Label):
         self.setParam("border_color", None, "btn.border_color")
         self.setParam("border_width", None, "btn.border_width")
 
+        # self.setParam("shadow_width", 15)
+        # self.setParam("shadow_ofs_x", 15)
+        # self.setParam("shadow_ofs_y", 15)
+
     def addIcon(self, icon, x, y):
         self.setParam("value_str", icon)
         self.setParam("value_font", self.fontSize)
@@ -250,6 +258,19 @@ class Image(Obj):
         self.setParam("h", size[1])
         self.setParam("src", src)  
 
+class Switch(Obj):
+    def __init__(self, design, coord, size):
+        self.Obj__init__(design, "switch")
+        self.setParam("x", coord[0])
+        self.setParam("y", coord[1])
+        self.setParam("w", size[0])
+        self.setParam("h", size[1])   
+
+        self.setParam("border_color", None, "switch.border_color")
+        self.setParam("bg_color00", None, "switch.off.bg_color")  
+        self.setParam("bg_color10", None, "switch.on.bg_color")
+        self.setParam("bg_color20", None, "switch.knob_color")
+          
 
 class Design():
     def __init__(self, manager, screenSize, style=None):
@@ -289,6 +310,7 @@ class NavButtons():
         x = dx // 2
         for tab in tabs:
             obj = Button(design, x, y, w, h, tab[0], fontsize)
+            obj.setParam("text_color", design.style["nav.active.text_color" if tab[1] == design.page else "nav.text_color"])
             obj.setParam("bg_color", design.style["nav.active.bg_color" if tab[1] == design.page else "nav.bg_color"])
             obj.actionOnPush(self._onPush)
             obj.pageToGo = tab[1]
@@ -317,7 +339,7 @@ class MediaPlayer():
             y += dy
 
         # Media title
-        obj = Label(design, x, y, size[0], h, "", mode="loop")
+        obj = Label(design, x, y, size[0], h, "",) # mode="loop")
         obj.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["text.color"])
         obj.linkText(player+".media_title")
 
@@ -505,34 +527,54 @@ class AnalogClock():
                 m = 0
             self.alarmHand.setPoints(self._getPoints(h*5, r*-.1, r*.60))
 
-
     def _getPoints(self, min, r1, r2):
         a = min / 60 * 2*3.14
         x = math.sin(a)
         y = math.cos(a)
         return ((self.cx + int(x*r1),self.cy - int(y*r1)), (self.cx + int(x*r2),self.cy - int(y*r2)))
 
+
 class Manager():
     class State:
-        def __init__(self, entity):
+        def __init__(self, entity, enabled):
              self.entity = entity
-             state.set(entity, "unknown")
+             self.enabled = enabled
+             self.state = None
+             self.noActivityCnt = 0
+             self.set("unknown")
 
-        def set(self, item, value):
-            state.setattr(f"{self.entity}.{item}", value)
+        def activityDetected(self):
+            self.noActivityCnt = 0
+            self.set("up")    
 
-        def inc(self, item):
-            try:
-                value = int(state.getattr(self.entity)[item])
-            except:
-                value = 0 
-            state.setattr(f"{self.entity}.{item}", value+1)
+        def tick(self):
+            self.noActivityCnt += 1
+            if self.noActivityCnt > 5:
+                self.set("down")   
+
+        def set(self, value):
+            if self.state != value:
+                self.state = value
+                if self.enabled:
+                    state.set(self.entity, value)
+
+        def setAttr(self, attr, value):
+            if self.enabled:
+                state.setattr(f"{self.entity}.{attr}", value)
+
+        def incAttr(self, attr):
+            if self.enabled:
+                try:
+                    value = int(state.getattr(self.entity)[attr])
+                except:
+                    value = 0 
+                state.setattr(f"{self.entity}.{attr}", value+1)
 
 
-    def __init__(self, name, screenSize, watchdogActive=False):
-        self.Manager__init__(name, screenSize, watchdogActive)
+    def __init__(self, name, screenSize, startupPage=1, keepHAState=False):
+        self.Manager__init__(name, screenSize, startupPage, keepHAState)
 
-    def Manager__init__(self, name, screenSize, startupPage=1):
+    def Manager__init__(self, name, screenSize, startupPage=1, keepHAState=False):
         global screenName2manager
         self.name = name
         self.sendHeartbeat = False
@@ -540,20 +582,15 @@ class Manager():
         self.startupPage = startupPage
         self.style = {}
         self.designSentTime = None
-        self.state = None
+        self.state = Manager.State(f"sensor.{self.name}", keepHAState)    
         self.instanceId = id(self)
 
         screenName2manager[name] = self.instanceId
 
         self.mqttTrigger1 = triggerFactory_mqtt(f"hasp/{self.name}/state/#",self._onMqttEvt, self.instanceId)
         self.mqttTrigger2 = triggerFactory_mqtt(f"hasp/{self.name}/LWT",self._onMqttEvt, self.instanceId)
-        self.mqttTrigger3 = triggerFactory_mqtt(f"hasp/discovery/#",self._onMqttDiscovery, self.instanceId)
-            
-
-    def keepState(self, entity=None):
-        if entity is None:
-            entity = f"sensor.{self.name}"
-        self.state = Manager.State(entity)    
+        #self.mqttTrigger3 = triggerFactory_mqtt(f"hasp/{self.name}/sensors",self._onMqttEvt, self.instanceId)
+        self.mqttTrigger4 = triggerFactory_mqtt(f"hasp/discovery/#",self._onMqttDiscovery, self.instanceId)
 
     def sendPeriodicHeatbeats(self):
         self.sendHeartbeat = True
@@ -564,13 +601,13 @@ class Manager():
             return
         if self.sendHeartbeat:
             self.sendHeatbeat()
+        self.state.tick()
         
     def _checkInstanceId(self, id, descr=""):
         global screenName2manager
         if id != screenName2manager[self.name]:
             if logStaleMessages: log.warning(f"Received STALE message {descr}")
-            if self.state is not None:
-                self.state.inc("stale_message")
+            self.state.incAttr("stale_message")
             return False
         else:
             return True
@@ -591,13 +628,15 @@ class Manager():
     def sendDesign(self):
         if logSendDesign: log.info(f"Sending design to \"{self.name}\" manager={self}")
 
-        if self.state is not None:
-            self.state.inc("desing_sent")
+        self.state.incAttr("desing_sent")
+        self.state.setAttr("stale_message", 0)
 
-        self.sendCmd("clearpage", "all")
         self.setBacklight(50)
         self.sendMsgBox("Receiving design form HA...")
-
+        task.sleep(1)
+        self.sendCmd("clearpage", "all")
+        task.sleep(3)
+        
         jsonl = ""
         for obj in self.design.objs:
             n = obj.getJsonl()
@@ -612,6 +651,7 @@ class Manager():
             if logSendDesignDetail: log.info(f"Sending (final) {len(jsonl)} bytes of json")
             self.sendCmd("jsonl", jsonl)
 
+        task.sleep(2)
         self.sendMsgBox("Design Complete")
 
     def gotoPage(self, page):
@@ -628,25 +668,35 @@ class Manager():
         if topic[2] == "LWT":
             if payload == "online":
                 if logOnline: log.info(f"Plate {self.name} Online")
+                self.state.activityDetected()
                 if (self.designSentTime is None) or (time.time()-self.designSentTime > 5): # Sometimes online event come quickly after one another
                     designSentTime = time.time()
                     self.sendDesign()
                     self.gotoPage(self.startupPage)
         elif topic[2] == "state":
-                pb = topic[3]
-                try:
-                    self.design.pbs[pb].onStateMsg(topic, payload)
-                except KeyError:
-                    pass
+                obj = topic[3]
+                #log.info(f"===> state of obj {obj}")
+                if re.search("p[0-9]+b[0-9]+", obj) is not None:
+                    # it has the pb format
+                    try:
+                        self.design.pbs[obj].onStateMsg(topic, payload)
+                    except KeyError:
+                        log.info(f"MQTT event on unknown pb {obj}")
+                elif obj == "sensors":
+                    sensors = json.loads(payload)
+                    self.state.activityDetected()
+                    self.state.setAttr("uptime", sensors["uptime"])
+        else:
+            log.info(f"Unexpected topic {topic[2]}")
 
     def _onMqttDiscovery(self, topic, payload, id):
         if self._checkInstanceId(id, "Discovery"):
             payload = json.loads(payload)
             if payload["node"] == self.name:
                 if logDiscovery: log.info(f"Discovery {topic} node={payload['node']}")
-                if self.state is not None:
-                    self.state.set("uri", payload["uri"])
-                    self.state.set("sw", payload["sw"])
+                self.state.activityDetected()
+                self.state.setAttr("uri", payload["uri"])
+                self.state.setAttr("sw", payload["sw"])
 
 def triggerFactory_entityChange(entity, func, cookie):
     if logEntityEvents: log.info(f">> Configure trigger on \"{entity}\" func={func} cookie={cookie}")
