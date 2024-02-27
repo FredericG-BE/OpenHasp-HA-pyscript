@@ -1,23 +1,33 @@
 # Introduction
-This library provides an alternative way of integrating openhasp screens in Home Assistant. <br><br>
-The screen design and how this integrates with HA is described in a single python file, replacing the jsonl files and the yaml files one traditionally would have to write.
+This library facilitates describing OpenHasp pages and their interactions with Home Assistant entities in Python. This single Python definition replaces the jsonl and yaml files one traditionally would have to write. The library communicates directly via mqtt messages with OpenHasp devices.  
+
+> [!CAUTION]
+> TODO: Add Picture
+
+This approach comes IMHO with many advantages.
 
 # State of the project
+Today the library supports a subset of OpenHasp. I add features as I need them. 
 
 # Supported features today
-- Style definition that define colors, borders, fonts and so on for all objects
+- Style definition controlling colors, borders, fonts and so on for all objects. These can however be overwritten per object.
 - Native objects:
     - Obj
     - Label
     - Button
     - Switch
     - Line
+    - MessqgeBox
 - Derived objects
     - On/Off Button
-    - Analog Clock
+    - Analog Clock. Selectable HA entity providing the time and alarm time.
     - Navigation Bar
     - MediaPlayer with Sonos extensions
-- Support for MQTT Watchdog
+- Integration with HA:
+    - When an object is pushed: call a service, toggle a HA switch entity or call a Python function.
+    - Link objects to HA entities so that the latter control text and/or color of the object.
+- Generate jsonl and send to display when it comes online.    
+- Support for MQTT Watchdog. In cases where a screen is not useful when not connected in HA and displaying stale data needs to be avoided, I created some custom code that resets the screen when no mqtt heartbeat messages are received for a few minutes.  
 - Motion detector can switch idle off
 
 # Getting started
