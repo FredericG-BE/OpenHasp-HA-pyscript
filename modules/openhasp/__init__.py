@@ -57,6 +57,8 @@ class Obj():
         #assert isInstance(design, Design)
         self.sent = False # not sent to the device yet
 
+        self.links = []
+
         # Add this object to the design, page and ID will be added there
         self.design.addObj(self)
 
@@ -108,19 +110,36 @@ class Obj():
     def serviceOnPush(self, domain, name, **kvargs):
         self.serviceOnPushInfo = (domain, name, kvargs)
 
+    def actionOnVal(self, func):
+        self.actionOnValFunc = func
+
     def onStateMsg(self, topic, payload):
         # Handling an MQTT state update for this object
-        if payload == '{"event":"down"}':
-            if hasattr(self, "toggleOnPushEntity"):
-                domain, name = self.toggleOnPushEntity.split(".")
-                service.call(domain, "toggle", entity_id=self.toggleOnPushEntity)
+        payload = json.loads(payload)
+        try:
+            event = payload["event"]
+        except KeyError:
+            pass
+        else:
+            if event == "down":
+                if hasattr(self, "toggleOnPushEntity"):
+                    domain, name = self.toggleOnPushEntity.split(".")
+                    service.call(domain, "toggle", entity_id=self.toggleOnPushEntity)
 
-            if hasattr(self, "actionOnPushFunc"):
-                self.actionOnPushFunc(self)
+                if hasattr(self, "actionOnPushFunc"):
+                    self.actionOnPushFunc(self)
 
-            if hasattr(self, "serviceOnPushInfo"):
-                log.info(f"self.serviceOnPush: {self.serviceOnPushInfo}")
-                service.call(self.serviceOnPushInfo[0], self.serviceOnPushInfo[1], **self.serviceOnPushInfo[2])
+                if hasattr(self, "serviceOnPushInfo"):
+                    log.info(f"self.serviceOnPush: {self.serviceOnPushInfo}")
+                    service.call(self.serviceOnPushInfo[0], self.serviceOnPushInfo[1], **self.serviceOnPushInfo[2])
+        
+        try:
+            val = payload["val"]
+        except KeyError:
+            pass
+        else:
+            if hasattr(self, "actionOnValFunc"):  
+                self.actionOnValFunc(self, val)  
 
     def _onEntityChange(self, cookie):
         link = cookie
@@ -178,7 +197,6 @@ class Label(Obj):
             self.setParam("mode", mode)
 
         self.font = font
-        self.links = []
 
     def setText(self, value):
         self.setParam("text", value)
@@ -274,7 +292,7 @@ class Image(Obj):
 
 
 class Switch(Obj):
-    def __init__(self, design, coord, size):
+    def __init__(self, design, coord, size, entity=None):
         self.Obj__init__(design, "switch")
         self.setCoord(coord)
         self.setSize(size)
@@ -283,7 +301,38 @@ class Switch(Obj):
         self.setParam("bg_color00", None, "switch.off.bg_color")  
         self.setParam("bg_color10", None, "switch.on.bg_color")
         self.setParam("bg_color20", None, "switch.knob_color")
-          
+
+        if entity is not None:
+            self.linkEntity(entity)
+
+    def linkOnOffVal(self, entity):
+        link = Link()
+        link.entity = entity
+        link.param = "val"
+        link.transform = onOff2Val
+        link.instanceId = self.design.manager.instanceId
+        link.trigger = triggerFactory_entityChange(entity, self._onEntityChange, link)
+        self.links.append(link)
+        self._onEntityChange(link) # Mimic a change so that the correct value is filled in
+
+    def linkEntity(self, entity):
+        self.entity = entity
+        self.linkOnOffVal(entity)
+        self.actionOnVal(self._onVal)
+
+    def _onVal(self, obj, val):
+        service.call("homeassistant","turn_on" if val==1 else "turn_off", entity_id=self.entity)
+
+class Slider(Obj):
+    def __init__(self, design, coord, size):
+        self.Obj__init__(design, "slider")
+        self.setCoord(coord)
+        self.setSize(size)
+        
+        # self.setParam("border_color", None, "switch.border_color")
+        # self.setParam("bg_color00", None, "switch.off.bg_color")  
+        # self.setParam("bg_color10", None, "switch.on.bg_color")
+        # self.setParam("bg_color20", None, "switch.knob_color")      
 
 class Design():
     def __init__(self, manager, screenSize, style=None):
@@ -429,6 +478,7 @@ class MediaPlayer():
 
     def _onVolumePush(self, obj):
         service.call("media_player", "volume_set", entity_id=obj.player, volume_level=obj.volume/100)
+
 
 class SonosFavorites():
     def __init__(self, design, player, coord, size, favList, returnPage):
@@ -758,3 +808,6 @@ def defaultState2Color(design, state):
         color = "White"
     #log.info(f"state {state} to color {color}")
     return color
+
+def onOff2Val(design, state):
+    return "1" if state == "on" else "0"
