@@ -132,14 +132,15 @@ class Obj():
                 if hasattr(self, "serviceOnPushInfo"):
                     log.info(f"self.serviceOnPush: {self.serviceOnPushInfo}")
                     service.call(self.serviceOnPushInfo[0], self.serviceOnPushInfo[1], **self.serviceOnPushInfo[2])
-        
-        try:
-            val = payload["val"]
-        except KeyError:
-            pass
-        else:
-            if hasattr(self, "actionOnValFunc"):  
-                self.actionOnValFunc(self, val)  
+            
+            elif event == "up":
+                try:
+                    val = payload["val"]
+                except KeyError:
+                    pass
+                else:
+                    if hasattr(self, "actionOnValFunc"):  
+                        self.actionOnValFunc(self, val)  
 
     def _onEntityChange(self, cookie):
         link = cookie
@@ -156,6 +157,22 @@ class Obj():
             value = link.transform(self.design, value)
         self.setParam(link.param, value)
 
+    # FIXME?: unify _onEntityChange and _onEntityAttrChange?
+    def _onEntityAttrChange(self, cookie):
+        link = cookie
+        if not self.design.manager._checkInstanceId(link.instanceId, f"EntityChange {link.entity}"):
+            return
+        # An entity linked to this object has changed
+        if logEntityEvents: log.info(f"_onEntityAttrChange self={self} link={link}")
+        try:
+            value = state.getattr(link.entity)[link.entityAttr]
+        except (AttributeError, KeyError):
+            log.warning(f"Failure to read {link.entity}.{link.entityAttr}")
+            value = ""
+        if link.transform is not None:
+            value = link.transform(self.design, value)
+        log.info(f"EntityChange {value}") 
+        self.setParam(link.param, value)
 
 class Page(Obj):
 
@@ -305,7 +322,10 @@ class Switch(Obj):
         if entity is not None:
             self.linkEntity(entity)
 
-    def linkOnOffVal(self, entity):
+    def linkEntity(self, entity):
+        self.entity = entity
+
+        # Entity On/Off state => Button Val
         link = Link()
         link.entity = entity
         link.param = "val"
@@ -314,25 +334,53 @@ class Switch(Obj):
         link.trigger = triggerFactory_entityChange(entity, self._onEntityChange, link)
         self.links.append(link)
         self._onEntityChange(link) # Mimic a change so that the correct value is filled in
-
-    def linkEntity(self, entity):
-        self.entity = entity
-        self.linkOnOffVal(entity)
+    
+        # Button Val => Entity On/Off
         self.actionOnVal(self._onVal)
 
     def _onVal(self, obj, val):
         service.call("homeassistant","turn_on" if val==1 else "turn_off", entity_id=self.entity)
 
 class Slider(Obj):
-    def __init__(self, design, coord, size):
+    def __init__(self, design, coord, size, entityBrightness=None):
         self.Obj__init__(design, "slider")
         self.setCoord(coord)
         self.setSize(size)
         
-        # self.setParam("border_color", None, "switch.border_color")
-        # self.setParam("bg_color00", None, "switch.off.bg_color")  
-        # self.setParam("bg_color10", None, "switch.on.bg_color")
-        # self.setParam("bg_color20", None, "switch.knob_color")      
+        self.setParam("border_color", None, "slider.border_color")
+        self.setParam("bg_color00", None, "slider.off.bg_color")  
+        self.setParam("bg_color10", None, "slider.on.bg_color")
+        self.setParam("bg_color20", None, "slider.knob_color")
+        self.setParam("radius", None, "slider.radius")
+
+        self.setShadow(None, "slider")
+
+        if entityBrightness is not None:
+            self.linkEntityBrightness(entityBrightness)  
+         
+    def linkEntityBrightness(self, entity):
+        self.entity = entity
+
+        # Slider state => Button Val
+        link = Link()
+        link.entity = entity
+        link.entityAttr = "brightness"
+        link.param = "val"
+        link.transform = brightness2Val
+        link.instanceId = self.design.manager.instanceId
+        link.trigger = triggerFactory_entityAttrChange(link.entity, link.entityAttr, self._onEntityAttrChange, link)
+        self.links.append(link)
+        self._onEntityAttrChange(link) # Mimic a change so that the correct value is filled in
+    
+        # Slider Val => Entity brightness
+        self.actionOnVal(self._onVal)
+
+    def _onVal(self, obj, val):
+        log.info(f"setting dimmer {val}")
+        if val > 0:
+            service.call("homeassistant","turn_on", entity_id=self.entity, brightness=int(val*255/100))
+        else:
+            service.call("homeassistant","turn_off", entity_id=self.entity)
 
 class Design():
     def __init__(self, manager, screenSize, style=None):
@@ -685,8 +733,15 @@ class Manager():
     def sendHeatbeat(self):
         self.sendCmd("custom/heartbeat")
 
-    def sendMsgBox(self, text, autoclose=1000):
-        self.sendCmd("jsonl", "{" + f'"page":0,"id":255,"obj":"msgbox","text":"{text}","auto_close":{autoclose}' + "}")
+    def sendMsgBox(self, text, textColor=None, bgColor=None, autoClose=1000):
+        jsonl = "{" 
+        jsonl += f'"page":0,"id":255,"obj":"msgbox","text":"{text}","auto_close":{autoClose}' 
+        if textColor is not None:
+            jsonl += f',"text_color":"{textColor}"'
+        if bgColor is not None:
+            jsonl += f',"bg_color":"{bgColor}"'
+        jsonl += "}"
+        self.sendCmd("jsonl", jsonl)
 
     def setBacklight(self, level):
         state = "on" if level > 0 else "off"
@@ -705,10 +760,10 @@ class Manager():
         self.state.setAttr("stale_message", 0)
 
         self.sendIdle("off")
-        self.sendMsgBox("Receiving design form HA...", 10000)
         task.sleep(1)
         self.sendCmd("clearpage", "all")
         task.sleep(3)
+        self.sendMsgBox("Receiving design form HA...", bgColor="Orange", textColor="White", autoClose=10000)
         
         jsonl = ""
         for obj in self.design.objs:
@@ -724,8 +779,8 @@ class Manager():
             if logSendDesignDetail: log.info(f"Sending (final) {len(jsonl)} bytes of json")
             self.sendCmd("jsonl", jsonl)
 
-        task.sleep(2)
-        self.sendMsgBox("Design Complete")
+        task.sleep(5)
+        self.sendMsgBox("Design Received from HA", textColor="White", bgColor="Green")
 
     def gotoPage(self, page):
         self.sendCmd("page", f"{page}")
@@ -781,6 +836,26 @@ def triggerFactory_entityChange(entity, func, cookie):
 
     return func_trig
 
+def triggerFactory_entityAttrChange(entity, attr, func, cookie):
+    if logEntityEvents: log.info(f">> Configure trigger on \"{entity}.{attr}\" func={func} cookie={cookie}")
+
+    @state_trigger(f"{entity}.{attr}")
+    def func_trig(value=None):
+        if logEntityEvents: log.info(f">> Triggered on \"{entity}.{attr}\" change: func={func} cookie={cookie}")
+        func(cookie)
+
+    return func_trig
+
+def triggerFactory_attributeChange(entity, attribute, func, cookie):
+    if logEntityEvents: log.info(f">> Configure trigger on \"{entity}.{attribute}\" func={func} cookie={cookie}")
+
+    @state_trigger(entity+"."+attribute)
+    def func_trig(value=None):
+        if logEntityEvents: log.info(f">> Triggered on \"{entity}.{attribute}\" change: func={func} cookie={cookie}")
+        func(cookie)
+
+    return func_trig
+
 def triggerFactory_mqtt(topic, func, cookie):
 
     @mqtt_trigger(topic)
@@ -811,3 +886,8 @@ def defaultState2Color(design, state):
 
 def onOff2Val(design, state):
     return "1" if state == "on" else "0"
+
+def brightness2Val(desing, state):
+    if state is None:
+        state = 0
+    return int(int(state) / 255 * 100)

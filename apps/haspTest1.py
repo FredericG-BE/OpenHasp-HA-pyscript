@@ -8,20 +8,25 @@ def onTestMePushed(obj):
 
 
 manager = oh.Manager("plate_test", (800, 480))
+manager.sendPeriodicHeatbeats()
+
 design = manager.design
 
 design.updateStyle(myStyle)
 
 oh.Page(design, 1)
 
-obj = oh.Button(design, 10, 10, 200, 100, "TestMe", 50)
+obj = oh.Button(design, (10, 10), (200, 100), "TestMe", 50)
 obj.actionOnPush(onTestMePushed)
 
-obj = oh.Label(design, 250, 33, 200, 100, "NA", 50)
+obj = oh.Label(design, (250, 33), (200, 100), "NA", 50)
 obj.linkText("input_number.demo")
 
-obj = oh.Button(design, 10, 150, 400, 100, "Call Service", 50)
+obj = oh.Button(design, (10, 150), (400, 100), "Call Service", 50)
 obj.serviceOnPush("light", "toggle", entity_id="light.bureau_rail")
+
+oh.Slider(design, (10,300), (240,20), "light.dimmer_1")
+oh.Slider(design, (10,400), (240,20), "light.eettafel")
 
 
 manager.sendDesign()

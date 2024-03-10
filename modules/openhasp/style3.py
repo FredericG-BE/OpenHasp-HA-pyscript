@@ -20,6 +20,17 @@ style = (  {"page.gb_color":       PAL_BLACK,
             "btn.border_width":    2,
             "btn.on.bg_color":     PAL_DARKBLUE,
             "btn.off.bg_color":    PAL_BLACK,
+
+            "switch.border_color":  PAL_LIGHTBLUE,
+            "switch.off.bg_color":  PAL_BLACK,
+            "switch.on.bg_color":   PAL_DARKBLUE,
+            "switch.knob_color":    PAL_DARKBLUE,
+
+            "slider.border_color":  PAL_LIGHTBLUE,
+            "slider.off.bg_color":  PAL_BLACK,
+            "slider.on.bg_color":   PAL_DARKBLUE,
+            "slider.knob_color":    PAL_DARKBLUE,
+            "slider.radius":        20,
             
             "nav.text_color":       "Linen",
             "nav.bg_color":         PAL_BLACK,
