@@ -302,10 +302,13 @@ class Line(Obj):
 
 
 class Image(Obj):
-    def __init__(self, design, coord, size, src):
+    def __init__(self, design, coord, size, src, zoom=None):
         self.Obj__init__(design, "img")
         self.setCoord(coord)
         self.setSize(size)
+        self.setParam("src", src)
+        if zoom is not None:
+            self.setParam("zoom", int(zoom*255))    
 
 
 class Switch(Obj):
@@ -342,7 +345,7 @@ class Switch(Obj):
         service.call("homeassistant","turn_on" if val==1 else "turn_off", entity_id=self.entity)
 
 class Slider(Obj):
-    def __init__(self, design, coord, size, entityBrightness=None):
+    def __init__(self, design, coord, size, entityBrightness=None, adaptColorTemp=False):
         self.Obj__init__(design, "slider")
         self.setCoord(coord)
         self.setSize(size)
@@ -356,10 +359,11 @@ class Slider(Obj):
         self.setShadow(None, "slider")
 
         if entityBrightness is not None:
-            self.linkEntityBrightness(entityBrightness)  
+            self.linkEntityBrightness(entityBrightness, adaptColorTemp)  
          
-    def linkEntityBrightness(self, entity):
+    def linkEntityBrightness(self, entity, adaptColorTemp=False):
         self.entity = entity
+        self.adaptColorTemp = adaptColorTemp
 
         # Slider state => Button Val
         link = Link()
@@ -378,7 +382,12 @@ class Slider(Obj):
     def _onVal(self, obj, val):
         log.info(f"setting dimmer {val}")
         if val > 0:
-            service.call("homeassistant","turn_on", entity_id=self.entity, brightness=int(val*255/100))
+            args = {}
+            args["brightness"] = int(val*255/100)
+            if self.adaptColorTemp:
+                args["color_temp"] = 600 - val*5 
+            log.info(args)
+            service.call("homeassistant","turn_on", entity_id=self.entity, **args)
         else:
             service.call("homeassistant","turn_off", entity_id=self.entity)
 
@@ -578,7 +587,7 @@ class SonosFavorites():
 
 
 class AnalogClock():
-    def __init__(self, design, center, r, timeSource="sensor.time", color=None, showSec=False, alarmSource=None, alarmColor=None):
+    def __init__(self, design, center, r, timeSource="sensor.time", lineWidth = None, color=None, showSec=False, alarmSource=None, alarmColor=None):
         self.design = design
         self.center = center
         self.r = r
@@ -588,7 +597,9 @@ class AnalogClock():
         if color is None:
             color = self.design.style.get("clock.color", None)
 
-        width = int(r/25)+1
+        width = lineWidth
+        if width is None: 
+            width = int(r/25)+1
 
         for m in range(0, 60, 5):
             points = self._getPoints(m, .8*r if m % 15 == 0 else .9*r, r)
@@ -735,7 +746,7 @@ class Manager():
 
     def sendMsgBox(self, text, textColor=None, bgColor=None, autoClose=1000):
         jsonl = "{" 
-        jsonl += f'"page":0,"id":255,"obj":"msgbox","text":"{text}","auto_close":{autoClose}' 
+        jsonl += f'"page":0,"id":255,"obj":"msgbox","text":"{text}","auto_close":{autoClose},"radius":15' 
         if textColor is not None:
             jsonl += f',"text_color":"{textColor}"'
         if bgColor is not None:
