@@ -514,12 +514,12 @@ class MediaPlayer():
         y += dy
 
         if sonosSleepTimer:
-            obj = Button(design, (x, y), (w, h), "Sleep 15\"", font)
+            obj = Button(design, (x, y), (w, h), "Sleep 15'", font)
             obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=15*60)
             x += w + dx
 
-            obj = Button(design, (x, y), (w, h), "Sleep 30\"", font)
-            obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=30+60)
+            obj = Button(design, (x, y), (w, h), "Sleep 30'", font)
+            obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=30*60)
             x += w + dx
 
         obj = Button(design, (x, y), (w, h), ICON_MUSIC, font)
