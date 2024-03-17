@@ -302,14 +302,17 @@ class Line(Obj):
 
 
 class Image(Obj):
-    def __init__(self, design, coord, size, src, zoom=None):
+    def __init__(self, design, coord, src, size=None, zoom=None):
         self.Obj__init__(design, "img")
-        self.setCoord(coord)
-        self.setSize(size)
         self.setParam("src", src)
         if zoom is not None:
-            self.setParam("zoom", int(zoom*255))    
-
+            assert size is not None, "The size of the image must be when zoom is set"
+            self.setParam("zoom", int(zoom*255))
+            if zoom < 1:
+                coord = (coord[0] - (size[0] * zoom) // 2, coord[1] - (size[1] * zoom) // 2) 
+            else:
+                coord = (coord[0] + (size[0] * (zoom-1)) // 2, coord[1] + (size[1] * (zoom-1)) // 2) 
+        self.setCoord(coord)
 
 class Switch(Obj):
     def __init__(self, design, coord, size, entity=None):
