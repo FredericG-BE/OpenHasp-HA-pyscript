@@ -445,7 +445,7 @@ class NavButtons():
 
 
 class MediaPlayer():
-    def __init__(self, design, player, coord, size, dispName=None, volumes=None, sonosSleepTimer=False, favoritesPage=None):
+    def __init__(self, design, player, coord, size, dispName=None, volumes=None, sonosSleepTimer=False, sonosTvMode=False, favoritesPage=None):
         self.design = design
         self.player = player
         self.favoritesPage = favoritesPage
@@ -475,7 +475,7 @@ class MediaPlayer():
                 obj = Button(design, (x, y), (w, h), ICON_VOLUME_HIGH + f" {volume}%", font)
                 obj.volume = volume
                 obj.player = player
-                obj.actionOnPush(self._onVolumePush)
+                obj.actionOnPush(self._onVolumePush) # FIXME: can we not just use obj.serviceOnPush() iso of calling a function?
                 x += w + dx
 
         # Buttons
@@ -509,6 +509,8 @@ class MediaPlayer():
         nbButtons = 1
         if sonosSleepTimer:
             nbButtons += 2
+        if sonosTvMode:
+            nbButtons += 1
         w = (size[0] - ((nbButtons-1)*dx)) // nbButtons
         x = coord[0]
         y += dy
@@ -525,6 +527,10 @@ class MediaPlayer():
         obj = Button(design, (x, y), (w, h), ICON_MUSIC, font)
         obj.page = favoritesPage
         obj.actionOnPush(self._onFavPush)
+        x += w + dx
+        
+        obj = Button(design, (x, y), (w, h), ICON_TELEVISION, font)
+        obj.serviceOnPush("media_player", "select_source", entity_id=player, source="TV")
         x += w + dx
 
     def _playerState2Icon(self, design, value):
