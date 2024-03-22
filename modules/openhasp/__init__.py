@@ -2,6 +2,7 @@ import json
 import math
 import time
 import re
+from . import imageHandling
 
 ICON_CHECK = "\uE12C"
 ICON_CLOCK_OUTLINE = "\uE150"
@@ -72,6 +73,9 @@ class Obj():
     def setSize(self, size):
         self.setParam("w", size[0])
         self.setParam("h", size[1])
+
+    def setHidden(self, hidden):
+        self.setParam("hidden", "1" if hidden else "0")
 
     def setShadow(self, shadow, objType):
         if shadow is None:
@@ -302,17 +306,30 @@ class Line(Obj):
 
 
 class Image(Obj):
-    def __init__(self, design, coord, src, size=None, zoom=None):
+    def __init__(self, design, coord, size=None, src=None):
         self.Obj__init__(design, "img")
-        self.setParam("src", src)
-        if zoom is not None:
-            assert size is not None, "The size of the image must be when zoom is set"
-            self.setParam("zoom", int(zoom*255))
-            if zoom < 1:
-                coord = (coord[0] - (size[0] * zoom) // 2, coord[1] - (size[1] * zoom) // 2) 
-            else:
-                coord = (coord[0] + (size[0] * (zoom-1)) // 2, coord[1] + (size[1] * (zoom-1)) // 2) 
         self.setCoord(coord)
+        self.size = size
+        self.coord = coord
+        if src is not None:
+            self.setSrc(src)
+
+    def setSrc(self, src):
+        coord = self.coord # This is where the image source needs to be, will have to be changed if image needs to be zoomed
+        if self.size is not None:
+            imageSize = imageHandling.getSize(src)
+            if imageSize is not None:
+                zoom = min(self.size[0]/imageSize[0], self.size[1]/imageSize[1])
+                self.setParam("zoom", int(zoom*255))
+                if zoom < 1:
+                    coord = (coord[0] - (imageSize[0] * (1-zoom)) // 2, coord[1] - (imageSize[1] * (1-zoom)) // 2) 
+                else:
+                    coord = (coord[0] + (imageSize[0] * (zoom-1)) // 2, coord[1] + (imageSize[1] * (zoom-1)) // 2) 
+                log.info(f"Image zoom: {imageSize}  {self.size} {zoom} {coord}")
+            else:
+                log.error(f"Failure to retrieve image size of \"{src}\"")
+        self.setCoord(coord)
+        self.setParam("src", src)
 
 class Switch(Obj):
     def __init__(self, design, coord, size, entity=None):
@@ -443,7 +460,33 @@ class NavButtons():
         #log.info(f"---> On Push {self} {obj}")
         obj.design.manager.gotoPage(obj.pageToGo)
 
+class MediaArtwork():
+    def __init__(self, design, coord, size, player):
+        self.design = design
+        self.player = player
+        self.coord = coord
+        self.size = size
 
+        self.imageObj = Image(design, coord, size)
+        self.imageObj.setHidden(True)
+
+        self.playerStateTf = triggerFactory_entityChange(player+".entity_picture", self._onChange, self.design.manager.instanceId)
+        self._onChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
+
+        self.design.otherObjs.append(self) # Keep a reference to this object to keep the references to the trigger functions
+
+    def _onChange(self, id):
+        #log.info(f"MediaArtwork._onChange")
+        if not self.design.manager._checkInstanceId(id, "MediaArtwork Change"):
+            return
+        try:
+            entity_picture = state.getattr(self.player)["entity_picture"]
+        except KeyError:
+            self.imageObj.setHidden(True)
+        else:
+            self.imageObj.setSrc("http://192.168.0.4:8123"+entity_picture)
+            self.imageObj.setHidden(False)
+    
 class MediaPlayer():
     def __init__(self, design, player, coord, size, dispName=None, volumes=None, sonosSleepTimer=False, sonosTvMode=False, favoritesPage=None):
         self.design = design
