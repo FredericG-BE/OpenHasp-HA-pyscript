@@ -521,7 +521,7 @@ class MediaPlayer():
                 obj.actionOnPush(self._onVolumePush) # FIXME: can we not just use obj.serviceOnPush() iso of calling a function?
                 x += w + dx
 
-        # Buttons
+        # Main Buttons
         y += dy
         nbButtons = 5
         w = (size[0] - (nbButtons-1)*dx) // nbButtons
@@ -548,7 +548,7 @@ class MediaPlayer():
         obj.serviceOnPush("media_player", "volume_up", entity_id=player)
         x += w + dx
 
-
+        # Buttons: sleep, favorites, TV 
         nbButtons = 1
         if sonosSleepTimer:
             nbButtons += 2
@@ -572,9 +572,10 @@ class MediaPlayer():
         obj.actionOnPush(self._onFavPush)
         x += w + dx
         
-        obj = Button(design, (x, y), (w, h), ICON_TELEVISION, font)
-        obj.serviceOnPush("media_player", "select_source", entity_id=player, source="TV")
-        x += w + dx
+        if sonosTvMode:
+            obj = Button(design, (x, y), (w, h), ICON_TELEVISION, font)
+            obj.serviceOnPush("media_player", "select_source", entity_id=player, source="TV")
+            x += w + dx
 
     def _playerState2Icon(self, design, value):
         if value == "playing":
