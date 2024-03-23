@@ -47,7 +47,11 @@ class Link(object):
 
 class Obj():
 
-    def Obj__init__(self, design, type=None, extraPar=None):
+    def __init__(self, design, coord=None, size=None, extraPar=None):
+        self.Obj__init__(design, "Obj", coord, size, extraPar)
+        log.info(f"  OBJ {coord} {size}")
+
+    def Obj__init__(self, design, type=None, coord=None, size=None, extraPar=None):
         self.design = design
         self.type = type
         self.params = {}
@@ -60,6 +64,12 @@ class Obj():
 
         self.links = []
 
+        if coord is not None:
+            self.setCoord(coord)
+        if size is not None:
+            self.setSize(size)
+
+
         # Add this object to the design, page and ID will be added there
         self.design.addObj(self)
 
@@ -67,15 +77,21 @@ class Obj():
         return f"p{self.params['page']}b{self.params['id']}"
     
     def setCoord(self, coord):
-        self.setParam("x", coord[0])
-        self.setParam("y", coord[1])
+        self.setParam("x", int(coord[0]))
+        self.setParam("y", int(coord[1]))
 
     def setSize(self, size):
-        self.setParam("w", size[0])
-        self.setParam("h", size[1])
+        self.setParam("w", int(size[0]))
+        self.setParam("h", int(size[1]))
 
     def setHidden(self, hidden):
         self.setParam("hidden", "1" if hidden else "0")
+
+    def setClipCorner(self):
+        self.setParam("clip_corner", 1)
+
+    def setParent(self, parent):
+        self.setParam("parentid", parent.params['id'])
 
     def setShadow(self, shadow, objType):
         if shadow is None:
@@ -87,6 +103,12 @@ class Obj():
             self.setParam("shadow_width", shadow[2])
             self.setParam("shadow_ofs_x", shadow[3][0])
             self.setParam("shadow_ofs_y", shadow[3][1])    
+
+    def setBorder(self, width, radius, color=None):
+        self.setParam("border_width", width)
+        self.setParam("radius", radius)
+        if color is not None:
+            self.setParam("border_color", color)    
 
     def setParam(self, param, value, styleName=None):
         if value is None:
@@ -193,9 +215,7 @@ class Page(Obj):
 class EmptyObj(Obj):
 
     def __init__(self, design, coord, size, extraPar=None):
-        self.Obj__init__(design, "Obj", extraPar)
-        self.setCoord(coord)
-        self.setSize(size)
+        self.Obj__init__(design, "Obj", coord=coord, size=size, extraPar = extraPar)
         self.setParam("bg_opa", 0)
         self.setParam("border_side", 0)
 
@@ -206,9 +226,7 @@ class Label(Obj):
         self.Label__init__(design, coord, size, text, font, textColor, align, mode, extraPar)
 
     def Label__init__(self, design, coord, size, text, font=None, textColor=None, align=None, mode=None, extraPar=None):
-        self.Obj__init__(design, "label", extraPar)
-        self.setCoord(coord)
-        self.setSize(size)
+        self.Obj__init__(design, "label", size=size, coord=coord, extraPar=extraPar)
         self.params["text"] = text
         self.setParam("text_font", font, "text.font")
         self.setParam("text_color", textColor, "text.color")
@@ -227,12 +245,6 @@ class Label(Obj):
 
     def setTextColor(self, color):
          self.setParam("text_color", color)
-
-    def setBorder(self, width, radius, color=None):
-        self.setParam("border_width", width)
-        self.setParam("radius", radius)
-        if color is not None:
-            self.setParam("border_color", color)
 
     def linkText(self, entity, transform=None):
         link = Link()
@@ -307,8 +319,7 @@ class Line(Obj):
 
 class Image(Obj):
     def __init__(self, design, coord, size=None, src=None):
-        self.Obj__init__(design, "img")
-        self.setCoord(coord)
+        self.Obj__init__(design, "img", coord=coord, size=size)
         self.size = size
         self.coord = coord
         if src is not None:
@@ -333,9 +344,7 @@ class Image(Obj):
 
 class Switch(Obj):
     def __init__(self, design, coord, size, entity=None):
-        self.Obj__init__(design, "switch")
-        self.setCoord(coord)
-        self.setSize(size)
+        self.Obj__init__(design, "switch", size=size, coord=coord)
         
         self.setParam("border_color", None, "switch.border_color")
         self.setParam("bg_color00", None, "switch.off.bg_color")  
@@ -468,6 +477,8 @@ class MediaArtwork():
         self.size = size
 
         self.imageObj = Image(design, coord, size)
+        self.imageObj.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["btn.border_color"])
+        self.imageObj.setClipCorner()
         self.imageObj.setHidden(True)
 
         self.playerStateTf = triggerFactory_entityChange(player+".entity_picture", self._onChange, self.design.manager.instanceId)
