@@ -488,7 +488,7 @@ class MediaArtwork():
             self.imageObj.setHidden(False)
     
 class MediaPlayer():
-    def __init__(self, design, player, coord, size, dispName=None, volumes=None, sonosSleepTimer=False, sonosTvMode=False, favoritesPage=None):
+    def __init__(self, design, player, coord, size, dispName=None, volumes=None, sonosSleepTimer=False, sonosTvMode=False, favoritesPage=None, artwork=None):
         self.design = design
         self.player = player
         self.favoritesPage = favoritesPage
@@ -499,6 +499,9 @@ class MediaPlayer():
         h = 60
         dx = 20 # space between the buttons
         dy = 70
+
+        if artwork is not None:
+            self.artwork = MediaArtwork(design, *artwork, player)
 
         if dispName is not None:
             obj = Label(design, (x, y), (size[0], h), dispName, align="left")
@@ -633,7 +636,7 @@ class SonosFavorites():
                 obj.design.manager.gotoPage(obj.favObj.returnPage)
                 return
             
-        log.warning("Sonos Favorite \"{favName}\" not found")
+        log.warning(f"Sonos Favorite \"{favName}\" not found")
         
     def _onDonePush(self, obj):
         obj.design.manager.gotoPage(obj.page)
