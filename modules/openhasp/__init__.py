@@ -327,18 +327,8 @@ class Image(Obj):
 
     def setSrc(self, src):
         coord = self.coord # This is where the image source needs to be, will have to be changed if image needs to be zoomed
-        if self.size is not None:
-            imageSize = imageHandling.getSize(src)
-            if imageSize is not None:
-                zoom = min(self.size[0]/imageSize[0], self.size[1]/imageSize[1])
-                self.setParam("zoom", int(zoom*255))
-                if zoom < 1:
-                    coord = (coord[0] - (imageSize[0] * (1-zoom)) // 2, coord[1] - (imageSize[1] * (1-zoom)) // 2) 
-                else:
-                    coord = (coord[0] + (imageSize[0] * (zoom-1)) // 2, coord[1] + (imageSize[1] * (zoom-1)) // 2) 
-                log.info(f"Image zoom: {imageSize}  {self.size} {zoom} {coord}")
-            else:
-                log.error(f"Failure to retrieve image size of \"{src}\"")
+        src = imageHandling.prepareImage(src, self.size, fitscreen=False)
+        log.info(f"Image prepared {src}")
         self.setCoord(coord)
         self.setParam("src", src)
 
