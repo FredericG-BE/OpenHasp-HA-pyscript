@@ -197,7 +197,7 @@ class Obj():
             value = ""
         if link.transform is not None:
             value = link.transform(self.design, value)
-        log.info(f"EntityChange {value}") 
+        # log.info(f"EntityChange {value}") 
         self.setParam(link.param, value)
 
 class Page(Obj):
@@ -318,19 +318,29 @@ class Line(Obj):
 
 
 class Image(Obj):
-    def __init__(self, design, coord, size=None, src=None):
+    def __init__(self, design, coord, size=None, src=None, resize=False, center=True):
         self.Obj__init__(design, "img", coord=coord, size=size)
         self.size = size
         self.coord = coord
+        self.resize = resize
+        self.center = center
         if src is not None:
             self.setSrc(src)
 
     def setSrc(self, src):
         coord = self.coord # This is where the image source needs to be, will have to be changed if image needs to be zoomed
-        src = imageHandling.prepareImage(src, self.size, fitscreen=False)
-        log.info(f"Image prepared {src}")
-        self.setCoord(coord)
-        self.setParam("src", src)
+        prepSrc, prepSize = imageHandling.prepareImage( src, 
+                                                        namePrefix=self.design.manager.name, 
+                                                        canvasSize=self.size, 
+                                                        resize=self.resize)
+        log.info(f"Image prepared src=\"{prepSrc}\" size=\"{prepSize}\"")
+        if self.center:
+            # self.size is the canvas, prepSrc is the size of the prepared image
+            newCoord = (coord[0] + (self.size[0]-prepSize[0])//2, coord[1] + (self.size[1]-prepSize[1])//2) 
+        else:
+            newCoord = coord
+        self.setCoord(newCoord)
+        self.setParam("src", prepSrc)
 
 class Switch(Obj):
     def __init__(self, design, coord, size, entity=None):
@@ -466,7 +476,7 @@ class MediaArtwork():
         self.coord = coord
         self.size = size
 
-        self.imageObj = Image(design, coord, size)
+        self.imageObj = Image(design, coord, size, center=True)
         self.imageObj.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["btn.border_color"])
         self.imageObj.setClipCorner()
         self.imageObj.setHidden(True)
@@ -497,9 +507,9 @@ class MediaPlayer():
         font = None
 
         x,y = coord
-        h = 60
+        h = 50
         dx = 20 # space between the buttons
-        dy = 70
+        dy = 60
 
         if artwork is not None:
             self.artwork = MediaArtwork(design, *artwork, player)
