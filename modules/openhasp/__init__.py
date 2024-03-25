@@ -39,6 +39,7 @@ logOnline = True
 logSendDesign = True
 logSendDesignDetail = False
 logStaleMessages = False
+logImageHandling = True
 
 screenName2manager = {}
 
@@ -324,23 +325,33 @@ class Image(Obj):
         self.coord = coord
         self.resize = resize
         self.center = center
+        self.lastLocalPrepSrc = None
         if src is not None:
             self.setSrc(src)
 
     def setSrc(self, src):
         coord = self.coord # This is where the image source needs to be, will have to be changed if image needs to be zoomed
-        prepSrc, prepSize = imageHandling.prepareImage( src, 
+        prepLocalSrc, prepPublicSrc, prepSize = imageHandling.prepareImage( src, 
                                                         namePrefix=self.design.manager.name, 
                                                         canvasSize=self.size, 
                                                         resize=self.resize)
-        log.info(f"Image prepared src=\"{prepSrc}\" size=\"{prepSize}\"")
+        if logImageHandling: log.info(f"Image prepared src=\"{prepPublicSrc}\" size=\"{prepSize}\"")
         if self.center:
-            # self.size is the canvas, prepSrc is the size of the prepared image
+            # self.size is the canvas, prepPublicSrc is the size of the prepared image
             newCoord = (coord[0] + (self.size[0]-prepSize[0])//2, coord[1] + (self.size[1]-prepSize[1])//2) 
         else:
             newCoord = coord
         self.setCoord(newCoord)
-        self.setParam("src", prepSrc)
+        self.setParam("src", prepPublicSrc)
+
+        # Delete old file?
+        if self.lastLocalPrepSrc is not None:
+            r, e = imageHandling.deleteFile(self.lastLocalPrepSrc)
+            if r:
+                if logImageHandling: log.info(f"Removed temp file \"{self.lastLocalPrepSrc}\"")
+            else:
+                if logImageHandling: log.info(f"FAILED to Remove temp file \"{self.lastLocalPrepSrc}\" {e}")
+        self.lastLocalPrepSrc = prepLocalSrc    
 
 class Switch(Obj):
     def __init__(self, design, coord, size, entity=None):
@@ -640,7 +651,7 @@ class SonosFavorites():
         favName = obj.favObj.favList[favShortName]
         log.info(f"Fav Name {favName}")
 
-        for id, name in state.get_attr("sensor.sonos_favorites")["items"].items():
+        for id, name in state.getattr("sensor.sonos_favorites")["items"].items():
             if name == favName:
                 log.info(f"Fav ID={id}")
                 service.call("media_player", "play_media", entity_id=obj.favObj.player, media_content_type = "favorite_item_id", media_content_id = id)

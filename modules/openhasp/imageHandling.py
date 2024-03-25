@@ -3,6 +3,7 @@ import requests
 import time
 import struct
 import logging
+import os
 
 from homeassistant.helpers.network import get_url
 
@@ -55,4 +56,13 @@ def prepareImage(src, canvasSize, namePrefix="", resize=False):
     
         out_image.flush()
 
-    return publicFileName, im.size
+    return localFilename, publicFileName, im.size
+
+@pyscript_executor
+def deleteFile(src):
+    try:
+        os.remove(src)
+    except Exception as e:
+        return False, e
+    else:
+        return True, None
