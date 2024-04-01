@@ -1,8 +1,7 @@
 # Introduction
 This library facilitates describing OpenHasp pages and their interactions with Home Assistant entities in Python. This single Python definition replaces the jsonl and yaml files one traditionally would have to write. The library communicates directly via mqtt messages with OpenHasp devices.  
 
-> [!CAUTION]
-> TODO: Add Picture
+![HelloWorld](https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/9b135649-75b5-46fd-aeea-e605f3431226)
 
 This approach comes IMHO with many advantages.
 
