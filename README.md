@@ -9,25 +9,34 @@ This approach comes IMHO with many advantages.
 Today the library supports a subset of OpenHasp. I add features as I need them. 
 
 # Supported features today
-- Style definition controlling colors, borders, fonts and so on for all objects. These can however be overwritten per object.
+- **Style definition** controlling colors, borders, fonts and so on for all objects. A style controls the whole projects but can however be overwritten per object if needed.
+<br>
 - Native objects:
-    - Obj
-    - Label
-    - Button
-    - Switch
-    - Line
-    - MessqgeBox
-- Derived objects
-    - On/Off Button
-    - Analog Clock. Selectable HA entity providing the time and alarm time.
-    - Navigation Bar
-    - MediaPlayer with Sonos extensions
+    - **Obj**
+    - **Label**
+    - **Button**
+    - **Switch**
+    - **Slider**
+    - **Line**
+    - **Image**; Images are fetched and resized by the library.
+    - **MessageBox**
+<br>
+- Derived objects (combining native objects to form more complex functions):
+    - **On/Off Button**
+    - **Analog Clock**; Selectable HA entity providing the time and alarm time.
+    - **Navigation Bar**
+    - **MediaArtwork**
+    - **MediaPlayer with Sonos extensions**
+<br>
 - Integration with HA:
     - When an object is pushed: call a service, toggle a HA switch entity or call a Python function.
     - Link objects to HA entities so that the latter control text and/or color of the object.
-- Generate jsonl and send to display when it comes online.    
-- Support for MQTT Watchdog. In cases where a screen is not useful when not connected in HA and displaying stale data needs to be avoided, I created some custom code that resets the screen when no mqtt heartbeat messages are received for a few minutes.  
-- Motion detector can switch idle off
+<br>
+- **Generate jsonl** and send to display when it comes online.    
+<br>
+- Support for **MQTT Watchdog**. In cases where a screen is not useful when not connected in HA and displaying stale data needs to be avoided, I created some custom code that resets the screen when no mqtt heartbeat messages are received for a few minutes.  
+<br>
+- **Motion detector** can switch idle off.
 
 # Getting started
 
