@@ -269,14 +269,14 @@ class Label(Obj):
 
 
 class Button(Label):
-    def __init__(self, design, coord, size, text, font=None, align=None, extraPar=None):
-        self.Button__init__(design, coord, size, text, font, align=None, extraPar=None)
+    def __init__(self, design, coord, size, text, align=None, extraPar=None):
+        self.Button__init__(design, coord, size, text, align=None, extraPar=None)
 
-    def Button__init__(self, design, coord, size, text, font, align=None, shadow=None, extraPar=None):
-        self.Label__init__(design, coord, size, text, font, align=None, extraPar=None)
+    def Button__init__(self, design, coord, size, text, align=None, shadow=None, extraPar=None):
+        self.Label__init__(design, coord, size, text, align, extraPar)
         self.params["obj"] = "btn"
 
-        self.setParam("text_font", font, "btn.font")
+        self.setParam("text_font", None, "btn.font")
         self.setParam("text_color", None, "btn.text_color")
         self.setParam("align", None, "btn.align")
         self.setParam("bg_color", None, "btn.bg_color")
@@ -289,17 +289,18 @@ class Button(Label):
 
     def addIcon(self, icon, x, y):
         self.setParam("value_str", icon)
-        self.setParam("value_font", self.font)
+        self.setParam("value_font", None, "btn.icon.font")
         self.setParam("value_ofs_x", x)
         self.setParam("value_ofs_y", y)
         self.setParam("value_color", None, "btn.text_color")
 
 
 class OnOffButton(Button):
-    def __init__(self, design, coord, size, text, font, entity, icon=None, align=None, extraPar=None):
-        self.Button__init__(design, coord, size, text, font, align=None, extraPar=None)
+    def __init__(self, design, coord, size, text, entity, icon=None, align=None, extraPar=None):
+        self.Button__init__(design, coord, size, text, align, extraPar)
         self.entity = entity
 
+        font = self.params["text_font"]
         if icon is not None:
             self.addIcon(icon, -size[0]//2+font, 0)
         self.linkColor(entity, param="bg_color", transform=defaultState2ButtonColor)
