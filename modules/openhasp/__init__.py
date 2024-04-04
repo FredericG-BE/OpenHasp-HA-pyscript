@@ -2,6 +2,10 @@ import json
 import math
 import time
 import re
+import datetime
+
+from homeassistant.util.dt import as_local
+
 from . import imageHandling
 
 ICON_CHECK = "\uE12C"
@@ -84,6 +88,9 @@ class Obj():
     def setSize(self, size):
         self.setParam("w", int(size[0]))
         self.setParam("h", int(size[1]))
+
+    def setFont(self, font):
+        self.setParam("text_font", font, "text.font")
 
     def setHidden(self, hidden):
         self.setParam("hidden", "1" if hidden else "0")
@@ -666,12 +673,13 @@ class SonosFavorites():
 
 
 class AnalogClock():
-    def __init__(self, design, center, r, timeSource="sensor.time", lineWidth = None, color=None, showSec=False, alarmSource=None, alarmColor=None):
+    def __init__(self, design, center, r, timeSource="sensor.time", timeFormat="%H:%M", lineWidth = None, color=None, showSec=False, alarmSource=None, alarmColor=None):
         self.design = design
         self.center = center
         self.r = r
         self.timeSource=timeSource
         self.alarmSource=alarmSource
+        self.timeFormat=timeFormat
 
         if color is None:
             color = self.design.style.get("clock.color", None)
@@ -699,16 +707,19 @@ class AnalogClock():
     def _onTimeChange(self, id):
         if not self.design.manager._checkInstanceId(id, "AnalogClock TimeChange"):
             return
+        dts = state.get(self.timeSource)
         try:
-            h,m = state.get(self.timeSource).split(":")
-            m = int(m)
-            h = int(h) + m/60
+            dt = datetime.datetime.strptime(dts, self.timeFormat)
+            dt = as_local(dt)
+            h = dt.hour
+            m = dt.minute
             r = self.r
         except:
+            log.error(f"Failed to parse time '{dts}'")
             r = 0
             h = 0
             m = 0
-        self.smallHand.setPoints(self._getPoints(h*5, r*-.1, r*.55))
+        self.smallHand.setPoints(self._getPoints((h+m/60)*5, r*-.1, r*.55))
         self.bigHand.setPoints(self._getPoints(m, r*-.1, r*.77))
 
     def _onAlarmChange(self, id):
