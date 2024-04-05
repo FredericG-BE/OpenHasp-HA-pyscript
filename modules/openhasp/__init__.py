@@ -254,6 +254,9 @@ class Label(Obj):
     def setTextColor(self, color):
          self.setParam("text_color", color)
 
+    def getTextColor(self):
+        return self.params["text_color"]
+
     def linkText(self, entity, transform=None):
         link = Link()
         link.entity = entity
@@ -527,19 +530,30 @@ class MediaPlayer():
 
         x,y = coord
         h = 50
-        dx = 20 # space between the buttons
+        dx = (size[0] // 50) + 1 # space between the buttons
         dy = 60
 
+        yTotal = 2*dy # media title + main buttons
+        if dispName is not None: yTotal += dy
+        if volumes is not None: yTotal += dy
+        if sonosSleepTimer or favoritesPage is not None or sonosTvMode: yTotal += dy
+            
+        if size[1] > yTotal:   
+            y += (size[1] - yTotal) // 2 # center vertically
+        else:
+            log.error("Media player needs more room than provided")
+        
         if artwork is not None:
             self.artwork = MediaArtwork(design, *artwork, player)
 
         if dispName is not None:
-            obj = Label(design, (x, y), (size[0], h), dispName, align="left")
+            obj = Label(design, (x, y), (size[0], h), dispName, align="center")
             y += dy
 
         # Media title
         obj = Label(design, (x, y), (size[0], h), "",) # mode="loop")
         obj.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["text.color"])
+        obj.setClipCorner()
         obj.linkText(player+".media_title")
 
         # Volumes
@@ -582,33 +596,35 @@ class MediaPlayer():
         x += w + dx
 
         # Buttons: sleep, favorites, TV 
-        nbButtons = 1
-        if sonosSleepTimer:
-            nbButtons += 2
-        if sonosTvMode:
-            nbButtons += 1
-        w = (size[0] - ((nbButtons-1)*dx)) // nbButtons
-        x = coord[0]
-        y += dy
+        if sonosSleepTimer or favoritesPage is not None or sonosTvMode:
+            nbButtons = 1
+            if sonosSleepTimer:
+                nbButtons += 2
+            if sonosTvMode:
+                nbButtons += 1
+            w = (size[0] - ((nbButtons-1)*dx)) // nbButtons
+            x = coord[0]
+            y += dy
 
-        if sonosSleepTimer:
-            obj = Button(design, (x, y), (w, h), "Sleep 15'", font)
-            obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=15*60)
-            x += w + dx
+            if sonosSleepTimer:
+                obj = Button(design, (x, y), (w, h), "Sleep 15'", font)
+                obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=15*60)
+                x += w + dx
 
-            obj = Button(design, (x, y), (w, h), "Sleep 30'", font)
-            obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=30*60)
-            x += w + dx
+                obj = Button(design, (x, y), (w, h), "Sleep 30'", font)
+                obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=30*60)
+                x += w + dx
 
-        obj = Button(design, (x, y), (w, h), ICON_MUSIC, font)
-        obj.page = favoritesPage
-        obj.actionOnPush(self._onFavPush)
-        x += w + dx
-        
-        if sonosTvMode:
-            obj = Button(design, (x, y), (w, h), ICON_TELEVISION, font)
-            obj.serviceOnPush("media_player", "select_source", entity_id=player, source="TV")
-            x += w + dx
+            if favoritesPage is not None:
+                obj = Button(design, (x, y), (w, h), ICON_MUSIC, font)
+                obj.page = favoritesPage
+                obj.actionOnPush(self._onFavPush)
+                x += w + dx
+            
+            if sonosTvMode:
+                obj = Button(design, (x, y), (w, h), ICON_TELEVISION, font)
+                obj.serviceOnPush("media_player", "select_source", entity_id=player, source="TV")
+                x += w + dx
 
     def _playerState2Icon(self, design, value):
         if value == "playing":
