@@ -4,6 +4,7 @@ from openhasp.style1 import style as myStyle
 
 # Adapt the settings below
 MY_LAMP_ENTITY = "light.bureau_spots"
+MY_PLAYER = "media_player.bureau"
 
 
 def transformOnOff(design, value):
@@ -11,6 +12,11 @@ def transformOnOff(design, value):
         return f"The light is ON #FFFF00 {oh.ICON_LIGHTBULB_ON}#"
     else:
         return f"The light is OFF {oh.ICON_LIGHTBULB}"
+    
+def transformTime(design, value):
+    t = value.split(":")
+    return f"{t[0]}h {t[1]}m"
+
 
 class HaspDemo(Manager):
 
@@ -21,32 +27,57 @@ class HaspDemo(Manager):
         design = self.design
         design.updateStyle(myStyle)
 
-        self.PAGE_BUTTONS    = 1
-        self.PAGE_CLOCKS     = 2
+        self.PAGE_LABELS    = 1
+        self.PAGE_BUTTONS   = 2
+        self.PAGE_CLOCKS    = 3
+        self.PAGE_PLAYER    = 4
+        self.PAGE_IMAGE     = 5
+
+        #
+        # Page: Labels
+        #
+        oh.Page(design, self.PAGE_LABELS)
+
+        obj = oh.Label(design, (10,0), (460,40), "OpenHasp Demo")
+        obj.setBorder(width=2, radius=20, color="Red")
+
+        oh.Label(design, (10,80), (460,40), "Text linked to Entity:", align="left")
+        obj = oh.Label(design, (10,80), (460,40), "", align="right")
+        obj.linkText("sensor.time") # linking the object text to a HA entity can also be done with buttons
+
+        oh.Label(design, (10,120), (460,40), "Linked to transformed Entity:", align="left")
+        obj = oh.Label(design, (10,120), (460,40), "", align="right")
+        obj.linkText("sensor.time", transformTime) # linking the object text to a HA entity can also be done with buttons
+
+        obj = oh.Label(design, (10,160), (460,40), "PUSH ME to change color", align="left")
+        obj.actionOnPush(self.onChangeColor) # Calling a function when pushed can also be done with many other objects
+
+        self.addNavbar()
 
         #
         # Page: Buttons, Switches and Sliders
         #
         oh.Page(design, self.PAGE_BUTTONS, startupPage=True)
 
-        obj = oh.Label(design, (0,0), (480/2,40), "OpenHasp Demo")
-        obj.setBorder(width=2, radius=20, color="Red")
-
-        obj = oh.Label(design, (480/2,0), (480/2,40), "The light is:")
+        obj = oh.Label(design, (0,0), (480,40), "")
         obj.linkText(MY_LAMP_ENTITY, transformOnOff)
 
         oh.Label(design, (0,50), (200,40), "Switch:")
-        oh.Switch(design, (200,50), (200,40), MY_LAMP_ENTITY)
+        oh.Switch(design, (200,50), (80,40), MY_LAMP_ENTITY)
         
         oh.Label(design, (0,100), (200,40), "On/Off Button:")
-        oh.OnOffButton(design, (200,100), (200,40), "Push me", MY_LAMP_ENTITY)
+        obj = oh.OnOffButton(design, (200,100), (270,40), "On/Off", MY_LAMP_ENTITY)
 
         oh.Label(design, (0,150), (200,40), "Button")
-        obj = oh.Button(design, (200,150), (200,40), "CallService", MY_LAMP_ENTITY)
+        obj = oh.Button(design, (200,150), (270,40), "Call Toggle Serv.", MY_LAMP_ENTITY)
         obj.serviceOnPush("light", "toggle", entity_id=MY_LAMP_ENTITY)
 
+        oh.Label(design, (0,200), (200,40), "Button")
+        obj = oh.Button(design, (200,200), (270,40), "Call Func", MY_LAMP_ENTITY)
+        obj.actionOnPush(self.onButtonPushed)
+
         self.addNavbar()
-        
+
         #
         # Page: Clocks
         #
@@ -62,12 +93,55 @@ class HaspDemo(Manager):
         
         self.addNavbar()
 
+        #
+        # Page: Player
+        #
+        oh.Page(design, self.PAGE_PLAYER)
+
+        oh.MediaPlayer( design, 
+                MY_PLAYER, 
+                (0,0), (480//2,270), 
+                dispName="My Media Player",
+                volumes = (4,8,20),
+                sonosSleepTimer=False, 
+                favoritesPage=None, 
+                sonosTvMode=False,
+                artwork = ((480//2+5,0), (480/2-5, 270)))
+
+        self.addNavbar()
+
+
+        #
+        # Page: Image
+        #
+        oh.Page(design, self.PAGE_IMAGE)
+
+        oh.Image(design, (0,0), (480,280), "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_1280.jpg")
+        
+        self.addNavbar()
+
         
     def addNavbar(self):
         oh.NavButtons(self.design, (480/5, 50), 32, (
+            ("Label", self.PAGE_LABELS),
             (oh.ICON_LIGHTBULB, self.PAGE_BUTTONS),
             (oh.ICON_CLOCK_OUTLINE, self.PAGE_CLOCKS),
+            (oh.ICON_MUSIC, self.PAGE_PLAYER),
+            ("Img", self.PAGE_IMAGE)
             ))
+        
+    def onChangeColor(self, obj):
+        color = obj.getTextColor() 
+        if color == "Red":
+            color = "Green"
+        elif color == "Green":
+            color = "Blue"
+        else:
+            color = "Red"
+        obj.setTextColor(color)
+
+    def onButtonPushed(self, obj):
+        self.sendMsgBox("Function Called!", autoClose=2000)
         
 
 # Create a HaspDemo manager for each plate defined in the psyscript config.yaml
