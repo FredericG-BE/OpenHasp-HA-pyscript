@@ -81,4 +81,34 @@ Today the library supports a subset of openHasp features. I have been adding fea
     ``` 
 
 # A more elaborate example openhasp_demo.py
-TODO
+
+openhasp_demo.py provides a bit more elaborate example. 
+
+The class HaspDemo derives from the library Manager class, allowing to instantiate multiple instances for multiple plates. This is done at the end of the file where the plate specific data is collected from the config.yaml; it could look like this:
+
+```
+pyscript:
+  allow_all_imports: true
+  hass_is_global: true
+
+apps:
+
+# openhasp_helloWorld: 
+
+  openhasp_demo:
+    - friendly_name: "Bureau"
+      plate_name: "plate_test1"
+      resolution_x: 480
+      resolution_y: 320
+      mediaplayer: "media_player.bureau"
+      lamp: "light.bureau_spots"
+
+    - friendly_name: "Living"
+      plate_name: "plate_test2"
+      resolution_x: 480
+      resolution_y: 320
+      mediaplayer: "media_player.living"
+      lamp: "light.living"
+```  
+While the screen resolutions are passed here, the layout is not adapted to the provided resolution and is made for 480x320.
+This demo uses images, which will not work on devices without PSram.

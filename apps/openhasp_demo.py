@@ -2,11 +2,6 @@ import openhasp as oh
 from openhasp import Manager
 from openhasp.style1 import style as myStyle
 
-# Adapt the settings below
-MY_LAMP_ENTITY = "light.bureau_spots"
-MY_PLAYER = "media_player.bureau"
-
-
 def transformOnOff(design, value):
     if value == "on":
         return f"The light is ON #FFFF00 {oh.ICON_LIGHTBULB_ON}#"
@@ -20,8 +15,12 @@ def transformTime(design, value):
 
 class HaspDemo(Manager):
 
-    def __init__(self, name, screenSize):
+    def __init__(self, friendlyName, name, screenSize, mediaPlayer, lamp):
         self.Manager__init__(name, screenSize, keepHAState=True)   # Workaround as calling super() is not supported by pyscript
+
+        self.friendlyName = friendlyName
+        self.mediaPlayer = mediaPlayer
+        self.lamp = lamp
 
         self.sendPeriodicHeatbeats()
         design = self.design
@@ -38,7 +37,7 @@ class HaspDemo(Manager):
         #
         oh.Page(design, self.PAGE_LABELS)
 
-        obj = oh.Label(design, (10,0), (460,40), "OpenHasp Demo")
+        obj = oh.Label(design, (10,0), (460,40), f"OpenHasp Demo - {self.friendlyName}")
         obj.setBorder(width=2, radius=20, color="Red")
 
         oh.Label(design, (10,80), (460,40), "Text linked to Entity:", align="left")
@@ -60,20 +59,20 @@ class HaspDemo(Manager):
         oh.Page(design, self.PAGE_BUTTONS, startupPage=True)
 
         obj = oh.Label(design, (0,0), (480,40), "")
-        obj.linkText(MY_LAMP_ENTITY, transformOnOff)
+        obj.linkText(self.lamp, transformOnOff)
 
         oh.Label(design, (0,50), (200,40), "Switch:")
-        oh.Switch(design, (200,50), (80,40), MY_LAMP_ENTITY)
+        oh.Switch(design, (200,50), (80,40), self.lamp)
         
         oh.Label(design, (0,100), (200,40), "On/Off Button:")
-        obj = oh.OnOffButton(design, (200,100), (270,40), "On/Off", MY_LAMP_ENTITY)
+        obj = oh.OnOffButton(design, (200,100), (270,40), "On/Off", self.lamp)
 
         oh.Label(design, (0,150), (200,40), "Button")
-        obj = oh.Button(design, (200,150), (270,40), "Call Toggle Serv.", MY_LAMP_ENTITY)
-        obj.serviceOnPush("light", "toggle", entity_id=MY_LAMP_ENTITY)
+        obj = oh.Button(design, (200,150), (270,40), "Call Toggle Serv.", self.lamp)
+        obj.serviceOnPush("light", "toggle", entity_id=self.lamp)
 
         oh.Label(design, (0,200), (200,40), "Button")
-        obj = oh.Button(design, (200,200), (270,40), "Call Func", MY_LAMP_ENTITY)
+        obj = oh.Button(design, (200,200), (270,40), "Call Func", self.lamp)
         obj.actionOnPush(self.onButtonPushed)
 
         self.addNavbar()
@@ -99,9 +98,9 @@ class HaspDemo(Manager):
         oh.Page(design, self.PAGE_PLAYER)
 
         oh.MediaPlayer( design, 
-                MY_PLAYER, 
+                self.mediaPlayer, 
                 (0,0), (480//2,270), 
-                dispName="My Media Player",
+                dispName=f"Player {self.friendlyName}",
                 volumes = (4,8,20),
                 sonosSleepTimer=False, 
                 favoritesPage=None, 
@@ -144,11 +143,18 @@ class HaspDemo(Manager):
         self.sendMsgBox("Function Called!", autoClose=2000)
         
 
-# Create a HaspDemo manager for each plate defined in the psyscript config.yaml
+# Create a HaspDemo manager for each plate defined in the psyscript config.yaml, see readme
 managers = []
 for appConf in pyscript.app_config:
+
+    name = appConf["friendly_name"]
     plateName = appConf["plate_name"]
+    resolution = (appConf["resolution_x"], appConf["resolution_y"])
+    mediaPlayer = appConf["mediaplayer"]
+    lamp = appConf["lamp"]
+
     log.info(f"Creating HaspDemo for '{plateName}'")
-    manager = HaspDemo(plateName, (480,320))
+    
+    manager = HaspDemo(name, plateName, resolution, mediaPlayer, lamp)
     managers.append(manager)
     manager.sendDesign()
