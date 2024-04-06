@@ -7,16 +7,11 @@ Traditionally the designs of the openHASP screen pages are described in json(l) 
 
 This library is based on [HACS pyscript](https://hacs-pyscript.readthedocs.io/en/latest/) and communicates directly via mqtt messages with openHASP devices.
 
-
-As a side-note, if just like me, don't like designing automations in yaml, have a look at pyscript. 
-
-
 ![HelloWorld](https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/9b135649-75b5-46fd-aeea-e605f3431226)
 
-This approach comes IMHO with many advantages.
 
 # State of the project
-Today the library supports a subset of openHasp features. At the time of writing, I add features as I need them.  
+Today the library supports a subset of openHasp features. I have been adding features as I needed them. At the time of writing, this repository is still private and teh setup steps have not been verified by somebody else. 
 
 # Supported features today
 - Native objects:
@@ -26,11 +21,11 @@ Today the library supports a subset of openHasp features. At the time of writing
     - **Switch**
     - **Slider**
     - **Line**
-    - **Image**; Images are fetched and resized by the library.
+    - **Image**; Images are fetched and resized and stored in www/openhasp-pyscript/temp by the library to be fetched by the plate.
     - **MessageBox**
 - Derived objects (combining native objects to form more complex functions):
     - **On/Off Button**
-    - **Analog Clock**; Selectable HA entity providing the time and alarm time.
+    - **Analog Clock**; Selectable HA entity providing the time and optional alarm time.
     - **Navigation Bar**
     - **Media Artwork**
     - **Media Player with Sonos extensions**
@@ -39,8 +34,8 @@ Today the library supports a subset of openHasp features. At the time of writing
     - When an object is pushed: call a service, toggle a HA switch entity or call a Python function.
     - Link objects to HA entities so that the latter control text and/or color of the object.
 - **Generate jsonl** and send to display when it comes online.    
-- **Style definition** controlling colors, borders, fonts and so on for all objects. A style controls the whole projects but can however be overwritten per object if needed.
-- Support for **MQTT Watchdog**. In cases where a screen is not useful when not connected in HA and displaying stale data needs to be avoided, I created some custom code that resets the screen when no mqtt heartbeat messages are received for a few minutes.  
+- **Style definition** controlling colors, borders, fonts and so on for all objects. A style controls the whole project but can however be overwritten per object if needed.
+- Support for **MQTT Watchdog**. For cases where a screen is not useful when disconnected from HA (and is displaying stale data), I created some custom code that resets the screen when no mqtt heartbeat messages are received for a few minutes.  
 - External **Motion detector** can switch idle off.
 
 # Features and enhancements in the pipeline
@@ -56,7 +51,8 @@ Today the library supports a subset of openHasp features. At the time of writing
 
 # Getting started
 
-- **Install HACS pyscript.** [See the pysript manual](https://hacs-pyscript.readthedocs.io/en/latest/installation.html#option-2-manual). Configure pyscript: As described in the [pyscript manual](https://hacs-pyscript.readthedocs.io/en/latest/reference.html#configuration) where I suggest to use the approach where a config.yaml in the pyscript directory. "hass_is_global" and "allow_all_imports" should be set to true. 
+- MQTT must be enabled on HA and connected to an MQTT broker. A openHASP screen must be configured and connected to the broker. Perhaps a good idea is to start from a standard setup with the standard HA integration to verify the MQTT/openHASP setup.
+- **Install HACS pyscript.** [See the pysript manual](https://hacs-pyscript.readthedocs.io/en/latest/installation.html#option-2-manual). Configure pyscript as described in the [pyscript manual](https://hacs-pyscript.readthedocs.io/en/latest/reference.html#configuration) where I suggest to use the approach where a config.yaml in the pyscript directory. "hass_is_global" and "allow_all_imports" should be set to true. 
 - Add *"dependencies": ["mqtt"]* to YOUR_HASS_CONFIG_DIRECTORY/custom_components/pyscript/manifest.json. On my system it looks like this:
 ```
 {
@@ -72,7 +68,7 @@ Today the library supports a subset of openHasp features. At the time of writing
     cd pyscript
     unzip OpenHasp-HA-pyscript-main.zip
 ```
-- **Run the openhasp_helloWorld**
+- **Run the openhasp_helloWorld.py**
     - Modify the settings in YOUR_HASS_CONFIG_DIRECTORY/pyscript/apps/openhasp_helloWorld
     - Add openhasp_helloWorld to your YOUR_HASS_CONFIG_DIRECTORY/pyscript/config.yaml:
     ```
@@ -83,3 +79,6 @@ Today the library supports a subset of openHasp features. At the time of writing
         apps:
             openhasp_helloWorld:
     ``` 
+
+# A more elaborate example openhasp_demo.py
+TODO
