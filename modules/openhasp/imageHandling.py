@@ -43,7 +43,13 @@ def prepareImage(src, canvasSize, namePrefix="", resize=False):
         im = im.resize((height, width), Image.LANCZOS)
     width, height = im.size  # actual canvasSize after resize
 
-    localFilename = f"/config/www/openhasp-pyscript/temp/{imageID}"
+    localFileDir = "/config/www/openhasp-pyscript/temp"
+    try:
+        os.makedirs(localFileDir)
+    except FileExistsError:
+        pass
+
+    localFilename = f"{localFileDir}/{imageID}"
     publicFileName = f"{get_url(hass, allow_external=False)}/local/openhasp-pyscript/temp/{imageID}"
     with open(localFilename, "wb") as out_image:
         out_image.write(struct.pack("I", height << 21 | width << 10 | 4))    
