@@ -2,7 +2,7 @@
 This library facilitates controlling [openHASP](https://www.openhasp.com/) screens (plates) from Home Assistant using Python.
 
 
-Traditionally the designs of the openHASP screen pages are described in json(l) while the interactions with Home Assistant (HA) are described in a yaml file using the standard openHASP integration for HA. This library provides an alternative by describing the pages design and the interactions with HA in a single definition  in Python. IMHO this results a much more readable and maintainable implementation of your designs.
+Traditionally the designs of the openHASP screen pages are described in json(l) while the interactions with Home Assistant (HA) are described in a yaml file using the standard openHASP integration for HA. This library provides an alternative by describing the pages design and the interactions with HA in a single definition  in Python. IMHO this results a much more readable and maintainable implementation of your designs. In addition, the approach allows to easily create more complex "objects" composed of basic openHASP objects, like a Media Player which are added to your design with just one line of code. Reuse is also much easier.
 
 
 This library is based on [HACS pyscript](https://hacs-pyscript.readthedocs.io/en/latest/) and communicates directly via mqtt messages with openHASP devices.
@@ -11,7 +11,7 @@ This library is based on [HACS pyscript](https://hacs-pyscript.readthedocs.io/en
 
 
 # State of the project
-Today the library supports a subset of openHasp features. I have been adding features as I needed them. At the time of writing, this repository is still private and teh setup steps have not been verified by somebody else. 
+Today the library supports a subset of openHasp features. I have been adding features as I needed them. At the time of writing, this repository is still private and the "Getting started" steps have not been confirmed by somebody else. 
 
 # Supported features today
 - Native objects:
@@ -33,6 +33,7 @@ Today the library supports a subset of openHasp features. I have been adding fea
 - Integration with HA:
     - When an object is pushed: call a service, toggle a HA switch entity or call a Python function.
     - Link objects to HA entities so that the latter control text and/or color of the object.
+    - For each plate the library can create an maintain entities showing statistics about the device, if it is running, the version, the URI, uptime, the FW version it is running, ...
 - **Generate jsonl** and send to display when it comes online.    
 - **Style definition** controlling colors, borders, fonts and so on for all objects. A style controls the whole project but can however be overwritten per object if needed.
 - Support for **MQTT Watchdog**. For cases where a screen is not useful when disconnected from HA (and is displaying stale data), I created some custom code that resets the screen when no mqtt heartbeat messages are received for a few minutes.  
@@ -40,6 +41,7 @@ Today the library supports a subset of openHasp features. I have been adding fea
 
 # Features and enhancements in the pipeline
 - Display Camera Image
+- More control on how an image is centered in the reserved canvas
 - Better Message Box support
 - Media Player enhancements:
     - More control over layout
