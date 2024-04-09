@@ -5,6 +5,7 @@ import re
 import datetime
 
 from homeassistant.util.dt import as_local
+from homeassistant.helpers.network import get_url
 
 from . import imageHandling
 
@@ -492,11 +493,13 @@ class NavButtons():
         obj.design.manager.gotoPage(obj.pageToGo)
 
 class MediaArtwork():
-    def __init__(self, design, coord, size, player):
+    def __init__(self, design, coord, size, player, tvIcon=None, audioFormat=None):
         self.design = design
         self.player = player
         self.coord = coord
         self.size = size
+        self.tvIcon = tvIcon
+        self.audioFormat = audioFormat
 
         self.imageObj = Image(design, coord, size, center=True)
         self.imageObj.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["btn.border_color"])
@@ -506,10 +509,17 @@ class MediaArtwork():
         self.playerStateTf = triggerFactory_entityChange(player+".entity_picture", self._onChange, self.design.manager.instanceId)
         self._onChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
 
+        self.sourceInfo = Label(design, (coord[0], coord[1] + size[1]//2 - 100), (size[0], 200), "", font=self.design.style["text.font"]*2)
+        self.sourceInfo.setHidden(True)
+
+        self.playerSourceIf = triggerFactory_entityChange(player+".source", self._onSourceChange, self.design.manager.instanceId)
+        if audioFormat is not None:
+            self.audioFormatIf = triggerFactory_entityChange(audioFormat, self._onSourceChange, self.design.manager.instanceId)
+        self._onSourceChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
+
         self.design.otherObjs.append(self) # Keep a reference to this object to keep the references to the trigger functions
 
     def _onChange(self, id):
-        #log.info(f"MediaArtwork._onChange")
         if not self.design.manager._checkInstanceId(id, "MediaArtwork Change"):
             return
         try:
@@ -517,9 +527,47 @@ class MediaArtwork():
         except KeyError:
             self.imageObj.setHidden(True)
         else:
-            self.imageObj.setSrc("http://192.168.0.4:8123"+entity_picture)
+            self.imageObj.setSrc(get_url(hass, allow_external=False)+entity_picture)
             self.imageObj.setHidden(False)
-    
+
+    def _onSourceChange(self, id):
+        if not self.design.manager._checkInstanceId(id, "MediaArtwork Change"):
+            return
+        source = state.getattr(self.player).get("source", None)
+
+        sourceInfo = ""
+
+        if source is not None:
+            sourceInfo = source
+            if source == "TV":
+                if self.tvIcon is not None:
+                    self.imageObj.setSrc(self.tvIcon)
+                    self.imageObj.setHidden(False)
+                if self.audioFormat is not None:
+                    format = state.get(self.audioFormat)
+                    newFormat = ""
+                    if format.find("Atmos") >= 0: newFormat = "Dolby Atmos"
+                    elif format.find("Dolby") >= 0: 
+                        newFormat = "Dolby"
+                        if format.find("5.1") >= 0: 
+                            newFormat += " 5.1"
+                        elif format.find("2.0") >= 0: 
+                            newFormat += " 2.0"
+                    elif format.find("PCM") >= 0: 
+                        newFormat = "PCM"
+                        if format.find("5.1") >= 0: 
+                            newFormat += " 5.1"
+                        elif format.find("2.0") >= 0: 
+                            newFormat += " 2.0"
+                    else: newFormat = format
+                    
+                    #format = state.get(self.audioFormat)
+                    sourceInfo += "\n" + newFormat
+            self.sourceInfo.setText(sourceInfo)
+            self.sourceInfo.setHidden(False)
+        else:
+            self.sourceInfo.setHidden(True)
+
 class MediaPlayer():
     def __init__(self, design, player, coord, size, dispName=None, volumes=None, sonosSleepTimer=False, sonosTvMode=False, favoritesPage=None, artwork=None):
         self.design = design
