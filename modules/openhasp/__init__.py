@@ -493,13 +493,11 @@ class NavButtons():
         obj.design.manager.gotoPage(obj.pageToGo)
 
 class MediaArtwork():
-    def __init__(self, design, coord, size, player, tvIcon=None, audioFormat=None):
+    def __init__(self, design, player, coord, size):
         self.design = design
         self.player = player
         self.coord = coord
         self.size = size
-        self.tvIcon = tvIcon
-        self.audioFormat = audioFormat
 
         self.imageObj = Image(design, coord, size, center=True)
         self.imageObj.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["btn.border_color"])
@@ -508,14 +506,6 @@ class MediaArtwork():
 
         self.playerStateTf = triggerFactory_entityChange(player+".entity_picture", self._onChange, self.design.manager.instanceId)
         self._onChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
-
-        self.sourceInfo = Label(design, (coord[0], coord[1] + size[1]//2 - 100), (size[0], 200), "", font=self.design.style["text.font"]*2)
-        self.sourceInfo.setHidden(True)
-
-        self.playerSourceIf = triggerFactory_entityChange(player+".source", self._onSourceChange, self.design.manager.instanceId)
-        if audioFormat is not None:
-            self.audioFormatIf = triggerFactory_entityChange(audioFormat, self._onSourceChange, self.design.manager.instanceId)
-        self._onSourceChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
 
         self.design.otherObjs.append(self) # Keep a reference to this object to keep the references to the trigger functions
 
@@ -530,6 +520,24 @@ class MediaArtwork():
             self.imageObj.setSrc(get_url(hass, allow_external=False)+entity_picture)
             self.imageObj.setHidden(False)
 
+
+class MediaSourceInfo():
+    def __init__(self, design, player, coord, size, audioFormat=None, font=None):
+        self.design = design
+        self.player = player
+        self.audioFormat = audioFormat
+
+        self.sourceInfo = Label(design, coord, size, "", font=font)
+        self.sourceInfo.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["text.color"])
+        self.sourceInfo.setHidden(True)
+
+        self.playerSourceIf = triggerFactory_entityChange(player+".source", self._onSourceChange, self.design.manager.instanceId)
+        if audioFormat is not None:
+            self.audioFormatIf = triggerFactory_entityChange(audioFormat, self._onSourceChange, self.design.manager.instanceId)
+        self._onSourceChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
+
+        self.design.otherObjs.append(self) # Keep a reference to this object to keep the references to the trigger functions
+
     def _onSourceChange(self, id):
         if not self.design.manager._checkInstanceId(id, "MediaArtwork Change"):
             return
@@ -540,13 +548,13 @@ class MediaArtwork():
         if source is not None:
             sourceInfo = source
             if source == "TV":
-                if self.tvIcon is not None:
-                    self.imageObj.setSrc(self.tvIcon)
-                    self.imageObj.setHidden(False)
                 if self.audioFormat is not None:
                     format = state.get(self.audioFormat)
                     newFormat = ""
-                    if format.find("Atmos") >= 0: newFormat = "Dolby Atmos"
+                    if format.find("No input") >= 0: 
+                        newFormat = "No Input"
+                    elif format.find("Atmos") >= 0: 
+                        newFormat = "Dolby Atmos"
                     elif format.find("Dolby") >= 0: 
                         newFormat = "Dolby"
                         if format.find("5.1") >= 0: 
@@ -569,7 +577,19 @@ class MediaArtwork():
             self.sourceInfo.setHidden(True)
 
 class MediaPlayer():
-    def __init__(self, design, player, coord, size, dispName=None, volumes=None, sonosSleepTimer=False, sonosTvMode=False, favoritesPage=None, artwork=None):
+    def __init__(   self, 
+                    design, 
+                    player, 
+                    coord, 
+                    size, 
+                    dispName=None, 
+                    volumes=None, 
+                    sonosSleepTimer=False, 
+                    sonosTvMode=False, 
+                    favoritesPage=None, 
+                    artwork=None, 
+                    inputInfo=None):
+        
         self.design = design
         self.player = player
         self.favoritesPage = favoritesPage
@@ -592,7 +612,9 @@ class MediaPlayer():
             log.error("Media player needs more room than provided")
         
         if artwork is not None:
-            self.artwork = MediaArtwork(design, *artwork, player)
+            self.artwork = MediaArtwork(design, player, *artwork)
+        if inputInfo is not None:
+            self.artwork = MediaSourceInfo(design, player, *inputInfo)
 
         if dispName is not None:
             obj = Label(design, (x, y), (size[0], h), dispName, align="center")
