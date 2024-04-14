@@ -35,6 +35,8 @@ ICON_LAMP = "\uE6B5"
 ICON_SILVERWARE_FORK_KNIFE = "\uEA70"
 ICON_COFFEE = "\uE176"
 ICON_TELEVISION = "\uE502"
+ICON_CCTV = "\uE7AE"
+ICON_RECYCLE_VARIANT = "\uF39D"
 
 
 logEntityEvents = False
@@ -44,7 +46,7 @@ logOnline = True
 logSendDesign = True
 logSendDesignDetail = False
 logStaleMessages = False
-logImageHandling = True
+logImageHandling = False
 
 screenName2manager = {}
 
@@ -55,7 +57,6 @@ class Obj():
 
     def __init__(self, design, coord=None, size=None, extraPar=None):
         self.Obj__init__(design, "Obj", coord, size, extraPar)
-        log.info(f"  OBJ {coord} {size}")
 
     def Obj__init__(self, design, type=None, coord=None, size=None, extraPar=None):
         self.design = design
@@ -212,7 +213,7 @@ class Obj():
 class Page(Obj):
 
     def __init__(self, design, pageNbr, startupPage=False, extraPar=None):
-        self.Obj__init__(design, type=None, extraPar=None)
+        self.Obj__init__(design=design, type=None, extraPar=None)
         self.params["page"] = pageNbr
         self.setParam("bg_color", None, "page.gb_color")
         self.design.page = pageNbr
@@ -224,7 +225,7 @@ class Page(Obj):
 class EmptyObj(Obj):
 
     def __init__(self, design, coord, size, extraPar=None):
-        self.Obj__init__(design, "Obj", coord=coord, size=size, extraPar = extraPar)
+        self.Obj__init__(design=design, type="Obj", coord=coord, size=size, extraPar = extraPar)
         self.setParam("bg_opa", 0)
         self.setParam("border_side", 0)
 
@@ -235,7 +236,7 @@ class Label(Obj):
         self.Label__init__(design, coord, size, text, font, textColor, align, mode, extraPar)
 
     def Label__init__(self, design, coord, size, text, font=None, textColor=None, align=None, mode=None, extraPar=None):
-        self.Obj__init__(design, "label", size=size, coord=coord, extraPar=extraPar)
+        self.Obj__init__(design=design, type="label", size=size, coord=coord, extraPar=extraPar)
         self.params["text"] = text
         self.setParam("text_font", font, "text.font")
         self.setParam("text_color", textColor, "text.color")
@@ -280,22 +281,22 @@ class Label(Obj):
 
 
 class Button(Label):
-    def __init__(self, design, coord, size, text, align=None, extraPar=None):
-        self.Button__init__(design, coord, size, text, align=None, extraPar=None)
+    def __init__(self, design, coord, size, text, font=None, align=None, extraPar=None):
+        self.Button__init__(design, coord, size, text, font, align, extraPar)
 
-    def Button__init__(self, design, coord, size, text, align=None, shadow=None, extraPar=None):
-        self.Label__init__(design, coord, size, text, align, extraPar)
+    def Button__init__(self, design, coord, size, text, font=None, align=None, extraPar=None):
+        self.Label__init__(design=design, coord=coord, size=size, text=text, font=font, align=align, extraPar=extraPar)
         self.params["obj"] = "btn"
 
-        self.setParam("text_font", None, "btn.font")
+        self.setParam("text_font", font, "btn.font")
         self.setParam("text_color", None, "btn.text_color")
-        self.setParam("align", None, "btn.align")
+        self.setParam("align", align, "btn.align")
         self.setParam("bg_color", None, "btn.bg_color")
         self.setParam("radius", None, "btn.radius")
         self.setParam("border_color", None, "btn.border_color")
         self.setParam("border_width", None, "btn.border_width")
 
-        self.setShadow(shadow, "btn")
+        self.setShadow(None, "btn")
 
 
     def addIcon(self, icon, x, y):
@@ -307,8 +308,8 @@ class Button(Label):
 
 
 class OnOffButton(Button):
-    def __init__(self, design, coord, size, text, entity, icon=None, align=None, extraPar=None):
-        self.Button__init__(design, coord, size, text, align, extraPar)
+    def __init__(self, design, coord, size, text, entity, font=None, icon=None, align=None, extraPar=None):
+        self.Button__init__(design=design, coord=coord, size=size, text=text, font=font, align=align, extraPar=extraPar)
         self.entity = entity
 
         font = self.params["text_font"]
@@ -320,7 +321,7 @@ class OnOffButton(Button):
 
 class Line(Obj):
     def __init__(self, design, points, width=None, color=None, extraPar=None):
-        self.Obj__init__(design, "line", extraPar)
+        self.Obj__init__(design=design, type="line", extraPar=extraPar)
         self.setPoints(points)
 
         self.setParam("line_width", width, "line.width")
@@ -332,7 +333,7 @@ class Line(Obj):
 
 class Image(Obj):
     def __init__(self, design, coord, size=None, src=None, resize=False, center=True):
-        self.Obj__init__(design, "img", coord=coord, size=size)
+        self.Obj__init__(design=design, type="img", coord=coord, size=size)
         self.size = size
         self.coord = coord
         self.resize = resize
@@ -367,7 +368,7 @@ class Image(Obj):
 
 class Switch(Obj):
     def __init__(self, design, coord, size, entity=None):
-        self.Obj__init__(design, "switch", size=size, coord=coord)
+        self.Obj__init__(design=design, type="switch", size=size, coord=coord)
         
         self.setParam("border_color", None, "switch.border_color")
         self.setParam("bg_color00", None, "switch.off.bg_color")  
@@ -398,7 +399,7 @@ class Switch(Obj):
 
 class Slider(Obj):
     def __init__(self, design, coord, size, entityBrightness=None, adaptColorTemp=False):
-        self.Obj__init__(design, "slider")
+        self.Obj__init__(design=design, type="slider")
         self.setCoord(coord)
         self.setSize(size)
         
@@ -474,23 +475,24 @@ class Design():
 
 
 class NavButtons():
-    def __init__(self, design, size, font, tabs):
+    def __init__(self, design, size, tabs, font=None):
         self.design = design
 
         dx = (design.screenSize[0] - size[0]*(len(tabs))) // len(tabs)
         y = design.screenSize[1] - size[1] - 5
         x = dx // 2
         for tab in tabs:
-            obj = Button(design, (x, y), size, tab[0], font)
+            obj = Button(design, (x, y), size, tab[0])
             obj.setParam("text_color", design.style["nav.active.text_color" if tab[1] == design.page else "nav.text_color"])
             obj.setParam("bg_color", design.style["nav.active.bg_color" if tab[1] == design.page else "nav.bg_color"])
+            obj.setParam("text_font", font, "nav.font")
             obj.actionOnPush(self._onPush)
             obj.pageToGo = tab[1]
             x += size[0] + dx
 
     def _onPush(self, obj):
-        #log.info(f"---> On Push {self} {obj}")
         obj.design.manager.gotoPage(obj.pageToGo)
+
 
 class MediaArtwork():
     def __init__(self, design, player, coord, size):
@@ -527,7 +529,7 @@ class MediaSourceInfo():
         self.player = player
         self.audioFormat = audioFormat
 
-        self.sourceInfo = Label(design, coord, size, "", font=font)
+        self.sourceInfo = Label(design, coord, size, text="", font=font)
         self.sourceInfo.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["text.color"])
         self.sourceInfo.setHidden(True)
 
@@ -588,13 +590,13 @@ class MediaPlayer():
                     sonosTvMode=False, 
                     favoritesPage=None, 
                     artwork=None, 
-                    inputInfo=None):
+                    sourceInfo=None):
         
         self.design = design
         self.player = player
         self.favoritesPage = favoritesPage
 
-        font = None
+        font = None # TODO
 
         x,y = coord
         h = 50
@@ -613,11 +615,11 @@ class MediaPlayer():
         
         if artwork is not None:
             self.artwork = MediaArtwork(design, player, *artwork)
-        if inputInfo is not None:
-            self.artwork = MediaSourceInfo(design, player, *inputInfo)
+        if sourceInfo is not None:
+            self.artwork = MediaSourceInfo(design, player, *sourceInfo)
 
         if dispName is not None:
-            obj = Label(design, (x, y), (size[0], h), dispName, align="center")
+            obj = Label(design, (x, y), (size[0], h), text=dispName, align="center")
             y += dy
 
         # Media title
@@ -632,7 +634,7 @@ class MediaPlayer():
             w = (size[0] - (len(volumes)-1)*dx) // len(volumes)
             x = coord[0]
             for volume in volumes:
-                obj = Button(design, (x, y), (w, h), ICON_VOLUME_HIGH + f" {volume}%", font)
+                obj = Button(design, (x, y), (w, h), text=ICON_VOLUME_HIGH + f" {volume}%", font=font)
                 obj.volume = volume
                 obj.player = player
                 obj.actionOnPush(self._onVolumePush) # FIXME: can we not just use obj.serviceOnPush() iso of calling a function?
@@ -644,24 +646,24 @@ class MediaPlayer():
         w = (size[0] - (nbButtons-1)*dx) // nbButtons
         x = coord[0]
         
-        obj = Button(design, (x, y), (w, h), ICON_VOLUME_MEDIUM, font)
+        obj = Button(design, (x, y), (w, h), text=ICON_VOLUME_MEDIUM, font=font)
         obj.serviceOnPush("media_player", "volume_down", entity_id=player)
         x += w + dx
 
-        obj = Button(design, (x, y), (w, h), ICON_SKIP_PREVIOUS, font)
+        obj = Button(design, (x, y), (w, h), text=ICON_SKIP_PREVIOUS, font=font)
         obj.serviceOnPush("media_player", "media_previous_track", entity_id=player)
         x += w + dx
 
-        obj = Button(design, (x, y), (w, h), ICON_PLAY, font)
+        obj = Button(design, (x, y), (w, h), text=ICON_PLAY, font=font)
         obj.serviceOnPush("media_player", "media_play_pause", entity_id=player)
         obj.linkText(player, self._playerState2Icon)
         x += w + dx
 
-        obj = Button(design, (x, y), (w, h), ICON_SKIP_NEXT, font)
+        obj = Button(design, (x, y), (w, h), text=ICON_SKIP_NEXT, font=font)
         obj.serviceOnPush("media_player", "media_next_track", entity_id=player)
         x += w + dx
 
-        obj = Button(design, (x, y), (w, h), ICON_VOLUME_HIGH, font)
+        obj = Button(design, (x, y), (w, h), text=ICON_VOLUME_HIGH, font=font)
         obj.serviceOnPush("media_player", "volume_up", entity_id=player)
         x += w + dx
 
@@ -677,22 +679,22 @@ class MediaPlayer():
             y += dy
 
             if sonosSleepTimer:
-                obj = Button(design, (x, y), (w, h), "Sleep 15'", font)
+                obj = Button(design, (x, y), (w, h), "Sleep 15'", font=font)
                 obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=15*60)
                 x += w + dx
 
-                obj = Button(design, (x, y), (w, h), "Sleep 30'", font)
+                obj = Button(design, (x, y), (w, h), "Sleep 30'", font=font)
                 obj.serviceOnPush("sonos", "SET_SLEEP_TIMER", entity_id=player, sleep_time=30*60)
                 x += w + dx
 
             if favoritesPage is not None:
-                obj = Button(design, (x, y), (w, h), ICON_MUSIC, font)
+                obj = Button(design, (x, y), (w, h), ICON_MUSIC, font=font)
                 obj.page = favoritesPage
                 obj.actionOnPush(self._onFavPush)
                 x += w + dx
             
             if sonosTvMode:
-                obj = Button(design, (x, y), (w, h), ICON_TELEVISION, font)
+                obj = Button(design, (x, y), (w, h), ICON_TELEVISION, font=font)
                 obj.serviceOnPush("media_player", "select_source", entity_id=player, source="TV")
                 x += w + dx
 
@@ -725,7 +727,7 @@ class SonosFavorites():
         rowCnt = 1
 
         for favShortName in favList:
-            obj = Button(design, (x, y), (w, h), favShortName, font) 
+            obj = Button(design, (x, y), (w, h), favShortName, font=font) 
             obj.favObj = self
             obj.actionOnPush(self._onFavPushed)
             x += w + dx
@@ -734,7 +736,7 @@ class SonosFavorites():
                 y += dy
                 x = coord[0]
                 rowCnt = 1
-        obj = Button(design, (x, y), (w, h), ICON_CHECK, font)
+        obj = Button(design, (x, y), (w, h), ICON_CHECK, font=font)
         obj.page = returnPage
         obj.actionOnPush(self._onDonePush)
 
