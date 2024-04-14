@@ -5,14 +5,14 @@ PAL_BEIGE = "#F0EDCF"
 
 style = (  {"page.gb_color":       PAL_BLACK,
             
-            "text.font":           30,
+            "text.font":           32,
             "text.color":          PAL_LIGHTBLUE,
             "text.align":          "center",
             "text.on.color":       "Gold",
             "text.off.color":      "Linen",
             
             "btn.text_color":      "Linen",
-            "btn.font":            30,
+            "btn.font":            32,
             "btn.bg_color":        PAL_BLACK,
             "btn.radius":          20,
             "btn.align":           "center",
@@ -20,7 +20,7 @@ style = (  {"page.gb_color":       PAL_BLACK,
             "btn.border_width":    2,
             "btn.on.bg_color":     PAL_DARKBLUE,
             "btn.off.bg_color":    PAL_BLACK,
-            "btn.icon.font":       50,
+            "btn.icon.font":       32,
 
             "switch.border_color":  PAL_LIGHTBLUE,
             "switch.off.bg_color":  PAL_BLACK,
@@ -37,6 +37,7 @@ style = (  {"page.gb_color":       PAL_BLACK,
             "nav.bg_color":         PAL_BLACK,
             "nav.active.text_color": "Linen",
             "nav.active.bg_color":  PAL_DARKBLUE,
+            "nav.font":             32,
             
             "line.color":          "Linen",
             "line.width":          10,
