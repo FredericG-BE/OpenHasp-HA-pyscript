@@ -2,6 +2,8 @@ import openhasp as oh
 from openhasp import Manager
 from openhasp.style1 import style as myStyle
 
+import math
+
 def transformOnOff(design, value):
     if value == "on":
         return f"The light is ON #FFFF00 {oh.ICON_LIGHTBULB_ON}#"
@@ -31,25 +33,33 @@ class HaspDemo(Manager):
         self.PAGE_CLOCKS    = 3
         self.PAGE_PLAYER    = 4
         self.PAGE_IMAGE     = 5
+        self.PAGE_LINE      = 6
 
         #
         # Page: Labels
         #
         oh.Page(design, self.PAGE_LABELS)
 
-        obj = oh.Label(design, (10,0), (460,40), f"OpenHasp Demo - {self.friendlyName}")
+        x=10; y=0; dy=40
+
+        obj = oh.Label(design, (x,y), (460,40), f"OpenHasp Demo - {self.friendlyName}")
         obj.setBorder(width=2, radius=20, color="Red")
+        y += dy
 
-        oh.Label(design, (10,80), (460,40), "Text linked to Entity:", align="left")
-        obj = oh.Label(design, (10,80), (460,40), "", align="right")
+        oh.Label(design, (x,y), (460,40), "Text linked to Entity:", align="left")
+        obj = oh.Label(design, (x,y), (460,40), "", align="right")
         obj.linkText("sensor.time") # linking the object text to a HA entity can also be done with buttons
+        y += dy
 
-        oh.Label(design, (10,120), (460,40), "Linked to transformed Entity:", align="left")
-        obj = oh.Label(design, (10,120), (460,40), "", align="right")
+        oh.Label(design, (x,y), (460,40), "Linked to transf. Entity:", align="left")
+        obj = oh.Label(design, (x,y), (460,40), "", align="right")
         obj.linkText("sensor.time", transformTime) # linking the object text to a HA entity can also be done with buttons
+        y += dy
 
-        obj = oh.Label(design, (10,160), (460,40), "PUSH ME to change color", align="left")
+        obj = oh.Label(design, (x,y), (460,50), "PUSH ME to change color", align="center", font=40)
         obj.actionOnPush(self.onChangeColor) # Calling a function when pushed can also be done with many other objects
+        y += dy
+        
 
         self.addNavbar()
 
@@ -65,14 +75,14 @@ class HaspDemo(Manager):
         oh.Switch(design, (200,50), (80,40), self.lamp)
         
         oh.Label(design, (0,100), (200,40), "On/Off Button:")
-        obj = oh.OnOffButton(design, (200,100), (270,40), "On/Off", self.lamp)
+        obj = oh.OnOffButton(design, (200,100), (270,40), text="On/Off", entity=self.lamp)
 
         oh.Label(design, (0,150), (200,40), "Button")
-        obj = oh.Button(design, (200,150), (270,40), "Call Toggle Serv.", self.lamp)
+        obj = oh.Button(design, (200,150), (270,40), text="Call Toggle Serv.")
         obj.serviceOnPush("light", "toggle", entity_id=self.lamp)
 
         oh.Label(design, (0,200), (200,40), "Button")
-        obj = oh.Button(design, (200,200), (270,40), "Call Func", self.lamp)
+        obj = oh.Button(design, (200,200), (270,40), text="Call Func")
         obj.actionOnPush(self.onButtonPushed)
 
         self.addNavbar()
@@ -119,15 +129,41 @@ class HaspDemo(Manager):
         
         self.addNavbar()
 
+
+        #
+        # Page: line
+        #
+        oh.Page(design, self.PAGE_LINE)
+
+        self.lineObj = oh.Line(design, ((0,0), (480,280)))
+        self.lineObjAngle = 0
+        self.updateLineObject()
+
+        self.addNavbar()
+
+    def updateLineObject(self):
+        cx = 480/2
+        cy = 280/2
+        r = 100
+        nbSegments = 5
+        points = []
+        for i in range(nbSegments+1):
+            a = (self.lineObjAngle + 360/nbSegments*i) / 180 * math.pi
+            points.append((cx + math.cos(a) * r, cy + math.sin(a) * r))
+        self.lineObj.setPoints(points)
+        self.lineObjAngle += 5                       
         
     def addNavbar(self):
-        oh.NavButtons(self.design, (480/5, 50), 32, (
-            ("Label", self.PAGE_LABELS),
-            (oh.ICON_LIGHTBULB, self.PAGE_BUTTONS),
-            (oh.ICON_CLOCK_OUTLINE, self.PAGE_CLOCKS),
-            (oh.ICON_MUSIC, self.PAGE_PLAYER),
-            ("Img", self.PAGE_IMAGE)
-            ))
+        oh.NavButtons(  self.design, 
+                        (480//6, 50), 
+                        (
+                            ("Lbl",                 self.PAGE_LABELS),
+                            (oh.ICON_LIGHTBULB,     self.PAGE_BUTTONS),
+                            (oh.ICON_CLOCK_OUTLINE, self.PAGE_CLOCKS),
+                            (oh.ICON_MUSIC,         self.PAGE_PLAYER),
+                            (oh.ICON_CCTV,          self.PAGE_IMAGE),
+                            (oh.ICON_RECYCLE_VARIANT, self.PAGE_LINE)
+                        ))
         
     def onChangeColor(self, obj):
         color = obj.getTextColor() 
@@ -158,3 +194,8 @@ for appConf in pyscript.app_config:
     manager = HaspDemo(name, plateName, resolution, mediaPlayer, lamp)
     managers.append(manager)
     manager.sendDesign()
+
+@time_trigger("period(0:00,1sec)")
+def onSec():
+    for manager in managers:
+        manager.updateLineObject()
