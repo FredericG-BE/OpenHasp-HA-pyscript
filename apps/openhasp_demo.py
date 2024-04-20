@@ -140,7 +140,7 @@ class HaspDemo(Manager):
         #
         oh.Page(design, self.PAGE_LINE)
 
-        self.lineObj = oh.Line(design, ((0,0), (480,280)))
+        self.lineObj = oh.Line(design, ((0,0), (480,280)), width=2)
         self.lineObjAngle = 0
         self.updateLineObject()
 
