@@ -37,6 +37,7 @@ ICON_COFFEE = "\uE176"
 ICON_TELEVISION = "\uE502"
 ICON_CCTV = "\uE7AE"
 ICON_RECYCLE_VARIANT = "\uF39D"
+ICON_LEAF = "\uE32A"
 
 
 logEntityEvents = False
@@ -128,7 +129,12 @@ class Obj():
             raise Exception(f"Cannot set Param {param}")
         self.params[param] = value
         if self.sent:
-            self.design.manager.sendCmd(f"{self.getpb()}.{param}", f"{value}")
+            if param == "text":
+                # Send all parameters so that text is passed as json 
+                self.send()
+            else:
+                # only update the one parameter that has changed
+                self.design.manager.sendCmd(f"{self.getpb()}.{param}", value)
 
     def getJsonl(self):
         return json.dumps(self.params)

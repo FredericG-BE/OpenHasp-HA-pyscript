@@ -1,4 +1,5 @@
 import openhasp as oh
+import openhasp.mdi as mdi
 from openhasp import Manager
 from openhasp.style1 import style as myStyle
 
@@ -54,6 +55,10 @@ class HaspDemo(Manager):
         oh.Label(design, (x,y), (460,40), "Linked to transf. Entity:", align="left")
         obj = oh.Label(design, (x,y), (460,40), "", align="right")
         obj.linkText("sensor.time", transformTime) # linking the object text to a HA entity can also be done with buttons
+        y += dy
+
+        oh.Label(design, (x,y), (460,50), "MDI Icon (if installed)", align="left")
+        oh.Label(design, (x,y), (460,50), mdi.FIRE, align="right", font="mdi32")
         y += dy
 
         obj = oh.Label(design, (x,y), (460,50), "PUSH ME to change color", align="center", font=40)
