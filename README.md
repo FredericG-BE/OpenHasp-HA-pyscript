@@ -10,6 +10,9 @@ This library is based on [HACS pyscript](https://hacs-pyscript.readthedocs.io/en
 ![HelloWorld](https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/9b135649-75b5-46fd-aeea-e605f3431226)
 
 
+![IMG_8840](https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/af62ddb9-cdf4-494d-9c5f-e6b39b9b685c)
+
+
 # State of the project
 Today the library supports a subset of openHasp features. I have been adding features as I needed them. At the time of writing, this repository is still private and the "Getting started" steps have not been confirmed by somebody else. 
 
