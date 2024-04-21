@@ -38,9 +38,9 @@ def prepareImage(src, canvasSize, namePrefix="", resize=False):
     if not resize:
         width = min(w for w in [width, original_width] if w is not None and w > 0)
         height = min(h for h in [height, original_height] if h is not None and h > 0)
-        im.thumbnail((height, width), Image.LANCZOS)
+        im.thumbnail((width, height), Image.LANCZOS)
     else:
-        im = im.resize((height, width), Image.LANCZOS)
+        im = im.resize((width, height), Image.LANCZOS)
     width, height = im.size  # actual canvasSize after resize
 
     localFileDir = "/config/www/openhasp-pyscript/temp"

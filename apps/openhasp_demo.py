@@ -16,9 +16,46 @@ def transformTime(design, value):
     return f"{t[0]}h {t[1]}m"
 
 
+class MyComposedObj():
+    def __init__(self, design, coord, size, nbSegments, angleStep, color):
+        self.nbSegments = nbSegments
+        self.coord = coord
+        self.size = size
+        self.angle = 0
+        self.angleStep = angleStep
+        self.visible = False
+        self.cx = coord[0] + size[0]//2
+        self.cy = coord[1] + size[1]//2 
+        self.r = min(size)//2
+        design.registerComposedObj(self)    # Needed to get the onVisible notifications
+        design.registerForTimerTick(self)
+        self.lineObj = oh.Line(design, (coord, coord), width=2, color=color)
+        self.labelObj = oh.Label(design, (self.cx-50, self.cy-25), (100,50), "Angle", textColor=color)
+
+    def updateLineObject(self):
+        points = []
+        for i in range(self.nbSegments+1):
+            a = (self.angle + 360/self.nbSegments*i) / 180 * math.pi
+            points.append((self.cx + math.cos(a) * self.r, self.cy + math.sin(a) * self.r))
+        self.lineObj.setPoints(points)
+        self.labelObj.setText(f"{self.angle:d}\u00B0")
+        
+        self.angle += self.angleStep        
+        if self.angle > 360:
+            self.angle -= 360
+        if self.angle < 0:
+            self.angle += 360
+
+    def onVisible(self, visible):
+        self.visible = visible
+
+    def onTimerTick(self):
+        if self.visible:
+            self.updateLineObject()   
+
 class HaspDemo(Manager):
 
-    def __init__(self, friendlyName, name, screenSize, mediaPlayer, lamp):
+    def __init__(self, friendlyName, name, screenSize, mediaPlayer, lamp, camera):
         self.Manager__init__(name, screenSize, keepHAState=True)   # Workaround as calling super() is not supported by pyscript
 
         self.friendlyName = friendlyName
@@ -71,7 +108,7 @@ class HaspDemo(Manager):
         #
         # Page: Buttons, Switches and Sliders
         #
-        oh.Page(design, self.PAGE_BUTTONS, startupPage=True)
+        oh.Page(design, self.PAGE_BUTTONS, isStartupPage=True)
 
         obj = oh.Label(design, (0,0), (480,40), "")
         obj.linkText(self.lamp, transformOnOff)
@@ -130,7 +167,10 @@ class HaspDemo(Manager):
         #
         oh.Page(design, self.PAGE_IMAGE)
 
-        oh.Image(design, (0,0), (480,280), "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_1280.jpg")
+        if camera is not None:
+            oh.Camera(design, (0,0), (480,260), camera)
+        else:
+            oh.Image(design, (0,0), (480,260), "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_1280.jpg")
         
         self.addNavbar()
 
@@ -140,23 +180,12 @@ class HaspDemo(Manager):
         #
         oh.Page(design, self.PAGE_LINE)
 
-        self.lineObj = oh.Line(design, ((0,0), (480,280)), width=2)
-        self.lineObjAngle = 0
-        self.updateLineObject()
+        MyComposedObj(design, (0,0), (480//2,260), 4, 5, "Red")
+        MyComposedObj(design, (480//2,0), (480//2,260), 3, -1, "Blue")
 
         self.addNavbar()
 
-    def updateLineObject(self):
-        cx = 480/2
-        cy = 280/2
-        r = 100
-        nbSegments = 5
-        points = []
-        for i in range(nbSegments+1):
-            a = (self.lineObjAngle + 360/nbSegments*i) / 180 * math.pi
-            points.append((cx + math.cos(a) * r, cy + math.sin(a) * r))
-        self.lineObj.setPoints(points)
-        self.lineObjAngle += 5                       
+                   
         
     def addNavbar(self):
         oh.NavButtons(  self.design, 
@@ -184,23 +213,21 @@ class HaspDemo(Manager):
         self.sendMsgBox("Function Called!", autoClose=2000)
         
 
-# Create a HaspDemo manager for each plate defined in the psyscript config.yaml, see readme
-managers = []
-for appConf in pyscript.app_config:
+@time_trigger("startup")
+def main():
+    # Create a HaspDemo manager for each plate defined in the psyscript config.yaml, see readme
+    managers = []
+    for appConf in pyscript.app_config:
 
-    name = appConf["friendly_name"]
-    plateName = appConf["plate_name"]
-    resolution = (appConf["resolution_x"], appConf["resolution_y"])
-    mediaPlayer = appConf["mediaplayer"]
-    lamp = appConf["lamp"]
+        name = appConf["friendly_name"]
+        plateName = appConf["plate_name"]
+        resolution = (appConf["resolution_x"], appConf["resolution_y"])
+        mediaPlayer = appConf["mediaplayer"]
+        lamp = appConf["lamp"]
+        camera = appConf.get("camera", None)
 
-    log.info(f"Creating HaspDemo for '{plateName}'")
-    
-    manager = HaspDemo(name, plateName, resolution, mediaPlayer, lamp)
-    managers.append(manager)
-    manager.sendDesign()
-
-@time_trigger("period(0:00,1sec)")
-def onSec():
-    for manager in managers:
-        manager.updateLineObject()
+        log.info(f"Creating HaspDemo for '{plateName}'")
+        
+        manager = HaspDemo(name, plateName, resolution, mediaPlayer, lamp, camera)
+        managers.append(manager)
+        manager.sendDesign()

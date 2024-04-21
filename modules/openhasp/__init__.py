@@ -39,7 +39,6 @@ ICON_CCTV = "\uE7AE"
 ICON_RECYCLE_VARIANT = "\uF39D"
 ICON_LEAF = "\uE32A"
 
-
 logEntityEvents = False
 logMqttEvents = False
 logDiscovery = True
@@ -48,6 +47,7 @@ logSendDesign = True
 logSendDesignDetail = False
 logStaleMessages = False
 logImageHandling = False
+logVisible = True
 
 screenName2manager = {}
 
@@ -218,14 +218,36 @@ class Obj():
 
 class Page(Obj):
 
-    def __init__(self, design, pageNbr, startupPage=False, extraPar=None):
-        self.Obj__init__(design=design, type=None, extraPar=None)
+    def __init__(self, design, pageNbr, isStartupPage=False, extraPar=None):
+        self.pageNbr = pageNbr # Obj__init__ will register the page and the page number needs to be known, would be better if the constructors would not register immediately 
+        self.Obj__init__(design=design, type=None, extraPar=None) # Will add the page to the design
         self.params["page"] = pageNbr
         self.setParam("bg_color", None, "page.gb_color")
-        self.design.page = pageNbr
 
-        if startupPage:
+        self.isStartupPage = isStartupPage
+        self.objs = []
+        self.composedObjs = []
+
+        if isStartupPage:
             self.design.manager.startupPage = pageNbr
+
+    def addObj(self, obj):
+        obj.setParam("page", self.pageNbr)
+        id = len(self.objs) + 1
+        assert id <= 255, "Too many objects on same page"
+        obj.setParam("id", id)
+        #self.pbs[f"p{obj.params['page']}b{obj.params['id']}"] = obj
+
+        self.objs.append(obj)
+        return obj
+    
+    def registerComposedObj(self, composedObj):
+        self.composedObjs.append(composedObj)   
+    
+    def onVisible(self, visible):
+        if logVisible: log.info(f"Page {self.pageNbr} visible:{visible}")
+        for obj in self.composedObjs: # Native objs don't get the onVisible 
+            obj.onVisible(visible)
 
 
 class EmptyObj(Obj):
@@ -454,43 +476,75 @@ class Design():
     def __init__(self, manager, screenSize, style=None):
         self.manager = manager
         self.screenSize = screenSize
-        self.page = 0
         self.id = 1
-        self.currId = 0
+        self.lastPageAdded = None
         self.style = style if style is not None else {}
         self.screenBackgroundColor = "Black"
-        self.objs = []  # These are HASP objects that are displayed
+
+        self.pages = {}
         self.otherObjs = [] # Objects that are no HAPS objects but for which a reference needs to be kept
-        self.pageIds = [0]*13
-        self.pbs = {}
+        self.timeTickObjs = [] # objects that need a timertick
+        self.currPageNbr = None    # The page that is being displayed
 
     def updateStyle(self, style):
         self.style.update(style)
 
+    def addPage(self, page):
+        assert type(page) == Page
+        self.lastPageAdded = page
+        self.pages[page.pageNbr] = page  
+        return page
+
     def addObj(self, obj):
         if type(obj) == Page:
-            pass
+            return self.addPage(obj)
         else:
-            obj.setParam("page", self.page)
-            self.pageIds[self.page] += 1
-            obj.setParam("id", self.pageIds[self.page])
-            self.pbs[f"p{obj.params['page']}b{obj.params['id']}"] = obj
+            # The object is added to the page that was last defined
+            return self.lastPageAdded.addObj(obj)
+        
+    def registerComposedObj(self, composedObj):
+        # The object is added to the page that was last defined
+        return self.lastPageAdded.registerComposedObj(composedObj)
+    
+    def registerForTimerTick(self, obj):
+        self.timeTickObjs.append(obj)
 
-        self.objs.append(obj)
-        return obj
+    def onTimerTick(self):
+        for obj in self.timeTickObjs:
+            obj.onTimerTick()
+
+    def pageChanged(self, pageNbr):
+        if self.currPageNbr is not None:
+            if pageNbr != self.currPageNbr:
+                self.pages[self.currPageNbr].onVisible(False)
+        self.currPageNbr = pageNbr
+        self.pages[self.currPageNbr].onVisible(True)
 
 
-class NavButtons():
-    def __init__(self, design, size, tabs, font=None):
+class ComposedObj():
+    def __init__(self, design):
+        self.ComposedObj__init__(design)
+
+    def ComposedObj__init__(self, design):
         self.design = design
+        design.registerComposedObj(self)
+
+    def onVisible(self, visisble):
+        pass
+
+
+class NavButtons(ComposedObj):
+    def __init__(self, design, size, tabs, font=None):
+        self.ComposedObj__init__(design)
 
         dx = (design.screenSize[0] - size[0]*(len(tabs))) // len(tabs)
         y = design.screenSize[1] - size[1] - 5
         x = dx // 2
+        currPageNbr = design.lastPageAdded.pageNbr
         for tab in tabs:
             obj = Button(design, (x, y), size, tab[0])
-            obj.setParam("text_color", design.style["nav.active.text_color" if tab[1] == design.page else "nav.text_color"])
-            obj.setParam("bg_color", design.style["nav.active.bg_color" if tab[1] == design.page else "nav.bg_color"])
+            obj.setParam("text_color", design.style["nav.active.text_color" if tab[1] == currPageNbr else "nav.text_color"])
+            obj.setParam("bg_color", design.style["nav.active.bg_color" if tab[1] == currPageNbr else "nav.bg_color"])
             obj.setParam("text_font", font, "nav.font")
             obj.actionOnPush(self._onPush)
             obj.pageToGo = tab[1]
@@ -500,9 +554,52 @@ class NavButtons():
         obj.design.manager.gotoPage(obj.pageToGo)
 
 
-class MediaArtwork():
+class Camera(ComposedObj):
+    def __init__(self, design, coord, size, camera, refreshRateSec=5):
+        self.ComposedObj__init__(design)        
+        self.camera = camera
+        self.refreshRateSec = refreshRateSec
+        self.refreshActive = False
+        
+        self.image = Image(design, coord, size)
+        self.image.setHidden(True)
+
+        design.registerForTimerTick(self)
+
+    def startRefreshing(self):
+        self.image.setHidden(False)
+        self.refresh()
+        self.refreshCountDown = self.refreshRateSec 
+        self.refreshActive = True
+
+    def stopRefreshing(self): 
+        self.image.setHidden(True)
+        self.refreshActive = False
+
+    def onVisible(self, visible):
+        if logVisible: log.info(f"Camera {self.camera} Visible:{visible}")
+        if visible:
+            self.startRefreshing()
+        else:
+            self.stopRefreshing()
+
+    def onTimerTick(self):
+        if self.refreshActive:
+            self.refreshCountDown -= 1
+            if self.refreshCountDown == 0:
+                self.refresh()
+                self.refreshCountDown = self.refreshRateSec 
+
+    def refresh(self):
+        # log.info("Camera Refresh")
+        cameraEntityAttr = state.getattr(self.camera)
+        src = get_url(hass, allow_external=False)+cameraEntityAttr["entity_picture"]
+        self.image.setSrc(src)
+
+
+class MediaArtwork(ComposedObj):
     def __init__(self, design, player, coord, size):
-        self.design = design
+        self.ComposedObj__init__(design)
         self.player = player
         self.coord = coord
         self.size = size
@@ -529,9 +626,9 @@ class MediaArtwork():
             self.imageObj.setHidden(False)
 
 
-class MediaSourceInfo():
+class MediaSourceInfo(ComposedObj):
     def __init__(self, design, player, coord, size, audioFormat=None, font=None):
-        self.design = design
+        self.ComposedObj__init__(design)
         self.player = player
         self.audioFormat = audioFormat
 
@@ -584,7 +681,7 @@ class MediaSourceInfo():
         else:
             self.sourceInfo.setHidden(True)
 
-class MediaPlayer():
+class MediaPlayer(ComposedObj):
     def __init__(   self, 
                     design, 
                     player, 
@@ -598,7 +695,7 @@ class MediaPlayer():
                     artwork=None, 
                     sourceInfo=None):
         
-        self.design = design
+        self.ComposedObj__init__(design)
         self.player = player
         self.favoritesPage = favoritesPage
 
@@ -717,8 +814,9 @@ class MediaPlayer():
         service.call("media_player", "volume_set", entity_id=obj.player, volume_level=obj.volume/100)
 
 
-class SonosFavorites():
+class SonosFavorites(ComposedObj):
     def __init__(self, design, player, coord, size, favList, returnPage):
+        self.ComposedObj__init__(design)
         self.returnPage = returnPage
         self.favList = favList
         self.player = player
@@ -766,9 +864,9 @@ class SonosFavorites():
         obj.design.manager.gotoPage(obj.page)
 
 
-class AnalogClock():
+class AnalogClock(ComposedObj):
     def __init__(self, design, center, r, timeSource="sensor.time", timeFormat="%H:%M", lineWidth = None, color=None, showSec=False, alarmSource=None, alarmColor=None):
-        self.design = design
+        self.ComposedObj__init__(design)
         self.center = center
         self.r = r
         self.timeSource=timeSource
@@ -895,6 +993,9 @@ class Manager():
         self.mqttTrigger2 = triggerFactory_mqtt(f"hasp/{self.name}/LWT",self._onMqttEvt, self.instanceId)
         self.mqttTrigger3 = triggerFactory_mqtt(f"hasp/discovery/#",self._onMqttDiscovery, self.instanceId)
 
+        self.timeTickTrigger = triggerFactory_time("period(0:00,1sec)", self._onTimerTick, self.instanceId)
+
+
     def sendPeriodicHeatbeats(self):
         self.sendHeartbeat = True
         self.timeTrigger = triggerFactory_entityChange("sensor.time", self._onTimeChange, self.design.manager.instanceId)
@@ -909,6 +1010,12 @@ class Manager():
         if state.get(self.montionSensorEntity) == "on":
             self.sendIdle("off")
     
+    def _onTimerTick(self, id):
+        if not self.design.manager._checkInstanceId(id, "Manager TimerTick"):
+            return
+        # log.info(f"TimerTick {self.name}")
+        self.design.onTimerTick()
+        
     def _onTimeChange(self, id):
         if not self.design.manager._checkInstanceId(id, "Manager TimeChange"):
             return
@@ -961,15 +1068,18 @@ class Manager():
         self.sendMsgBox("Receiving design form HA...", bgColor="Orange", textColor="White", autoClose=10000)
         
         jsonl = ""
-        for obj in self.design.objs:
-            n = obj.getJsonl()
-            if len(jsonl)+len(n) > 2000:
-                self.sendCmd("jsonl", jsonl)
-                if logSendDesignDetail: log.info(f"Sending {len(jsonl)} bytes of json")
-                jsonl = n
-            else:
-                jsonl += n + "\r\n"
-            obj.sent = True
+        for page in self.design.pages.values():
+            jsonl += page.getJsonl()
+            page.sent = True
+            for obj in page.objs:
+                n = obj.getJsonl()
+                if len(jsonl)+len(n) > 2000:
+                    self.sendCmd("jsonl", jsonl)
+                    if logSendDesignDetail: log.info(f"Sending {len(jsonl)} bytes of json")
+                    jsonl = n
+                else:
+                    jsonl += n + "\r\n"
+                obj.sent = True
         if len(jsonl) > 0:
             if logSendDesignDetail: log.info(f"Sending (final) {len(jsonl)} bytes of json")
             self.sendCmd("jsonl", jsonl)
@@ -977,9 +1087,10 @@ class Manager():
         task.sleep(5)
         self.sendMsgBox("Design Received from HA", textColor="White", bgColor="Green")
 
-    def gotoPage(self, page):
-        self.sendCmd("page", f"{page}")
-
+    def gotoPage(self, pageNbr):
+        self.sendCmd("page", f"{pageNbr}")
+        self.design.pageChanged(pageNbr)
+        
     def _onMqttEvt(self, topic, payload, id):
         if not self._checkInstanceId(id, f"mqttEvnt topic={topic}"):
             return
@@ -997,18 +1108,24 @@ class Manager():
                     self.sendDesign()
                     self.gotoPage(self.startupPage)
         elif topic[2] == "state":
-                obj = topic[3]
-                #log.info(f"===> state of obj {obj}")
-                if re.search("p[0-9]+b[0-9]+", obj) is not None:
-                    # it has the pb format
-                    try:
-                        self.design.pbs[obj].onStateMsg(topic, payload)
-                    except KeyError:
-                        log.info(f"MQTT event on unknown pb {obj}")
-                elif obj == "sensors":
-                    sensors = json.loads(payload)
-                    self.state.activityDetected()
-                    self.state.setAttr("uptime", sensors["uptime"])
+            obj = topic[3]
+            #log.info(f"===> state of obj {obj}")
+            if re.search("p[0-9]+b[0-9]+", obj) is not None:
+                # it has the pb format
+                pb = obj.split("b")
+                p = int(pb[0][1:])
+                b = int(pb[1])
+                log.info(f"p={p} b={b} {len(self.design.pages)} {len(self.design.pages[p].objs)} ")
+                try:
+                    self.design.pages[p].objs[b-1].onStateMsg(topic, payload)
+                except KeyError:
+                    log.info(f"MQTT event on unknown pb {obj}")
+            elif obj == "sensors":
+                sensors = json.loads(payload)
+                self.state.activityDetected()
+                self.state.setAttr("uptime", sensors["uptime"])
+            elif obj == "page":
+                self.design.pageChanged(int(payload))
         else:
             log.info(f"Unexpected topic {topic[2]}")
 
@@ -1020,6 +1137,16 @@ class Manager():
                 self.state.activityDetected()
                 self.state.setAttr("uri", payload["uri"])
                 self.state.setAttr("sw", payload["sw"])
+
+def triggerFactory_time(timeSpec, func, cookie):
+    if logEntityEvents: log.info(f">> Configure time trigger \"{timeSpec}\" func={func} cookie={cookie}")
+
+    @time_trigger(timeSpec)
+    def func_trig(value=None):
+        if logEntityEvents: log.info(f">> Time trigger \"{timeSpec}\" change: func={func} cookie={cookie}")
+        func(cookie)
+
+    return func_trig
 
 def triggerFactory_entityChange(entity, func, cookie):
     if logEntityEvents: log.info(f">> Configure trigger on \"{entity}\" func={func} cookie={cookie}")

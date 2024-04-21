@@ -26,13 +26,14 @@ Today the library supports a subset of openHasp features. I have been adding fea
     - **Line**
     - **Image**; Images are fetched and resized and stored in www/openhasp-pyscript/temp by the library to be fetched by the plate.
     - **MessageBox**
-- Derived objects (combining native objects to form more complex functions):
+- "Composed" objects (combining native objects to form more complex functions):
     - **On/Off Button**
     - **Analog Clock**; Selectable HA entity providing the time and optional alarm time.
     - **Navigation Bar**
     - **Media Artwork**
     - **Media Player with Sonos extensions**
     - **Sonos Favorites**; Page with a (subset) of favorites to select from
+    - **Camera Image**; For camera images that are exposed in HA via an entity; image is refreshed periodically when the page is visible.
 - Integration with HA:
     - When an object is pushed: call a service, toggle a HA switch entity or call a Python function.
     - Link objects to HA entities so that the latter control text and/or color of the object.
@@ -107,6 +108,7 @@ apps:
       resolution_y: 320
       mediaplayer: "media_player.bureau"
       lamp: "light.bureau_spots"
+      camera: "camera.oost" # This is optional
 
     - friendly_name: "Living"
       plate_name: "plate_test2"
