@@ -10,7 +10,7 @@ def transformOnOff(design, value):
         return f"The light is ON #FFFF00 {oh.ICON_LIGHTBULB_ON}#"
     else:
         return f"The light is OFF {oh.ICON_LIGHTBULB}"
-    
+
 def transformTime(design, value):
     t = value.split(":")
     return f"{t[0]}h {t[1]}m"
@@ -25,7 +25,7 @@ class MyComposedObj():
         self.angleStep = angleStep
         self.visible = False
         self.cx = coord[0] + size[0]//2
-        self.cy = coord[1] + size[1]//2 
+        self.cy = coord[1] + size[1]//2
         self.r = min(size)//2
         design.registerComposedObj(self)    # Needed to get the onVisible notifications
         design.registerForTimerTick(self)
@@ -39,8 +39,8 @@ class MyComposedObj():
             points.append((self.cx + math.cos(a) * self.r, self.cy + math.sin(a) * self.r))
         self.lineObj.setPoints(points)
         self.labelObj.setText(f"{self.angle:d}\u00B0")
-        
-        self.angle += self.angleStep        
+
+        self.angle += self.angleStep
         if self.angle > 360:
             self.angle -= 360
         if self.angle < 0:
@@ -51,7 +51,7 @@ class MyComposedObj():
 
     def onTimerTick(self):
         if self.visible:
-            self.updateLineObject()   
+            self.updateLineObject()
 
 class HaspDemo(Manager):
 
@@ -101,7 +101,7 @@ class HaspDemo(Manager):
         obj = oh.Label(design, (x,y), (460,50), "PUSH ME to change color", align="center", font=40)
         obj.actionOnPush(self.onChangeColor) # Calling a function when pushed can also be done with many other objects
         y += dy
-        
+
 
         self.addNavbar()
 
@@ -115,7 +115,7 @@ class HaspDemo(Manager):
 
         oh.Label(design, (0,50), (200,40), "Switch:")
         oh.Switch(design, (200,50), (80,40), self.lamp)
-        
+
         oh.Label(design, (0,100), (200,40), "On/Off Button:")
         obj = oh.OnOffButton(design, (200,100), (270,40), text="On/Off", entity=self.lamp)
 
@@ -138,10 +138,10 @@ class HaspDemo(Manager):
 
         oh.Label(design, (20,110), (100,40), "Sunrise")
         oh.AnalogClock(design, (70,200), 50, timeSource="sun.sun.next_rising", timeFormat="%Y-%m-%dT%H:%M:%S.%f%z")
-        
+
         oh.Label(design, (360,110), (100,40), "Sunset")
         oh.AnalogClock(design, (410,200), 50, timeSource="sun.sun.next_setting", timeFormat="%Y-%m-%dT%H:%M:%S.%f%z")
-        
+
         self.addNavbar()
 
         #
@@ -149,13 +149,13 @@ class HaspDemo(Manager):
         #
         oh.Page(design, self.PAGE_PLAYER)
 
-        oh.MediaPlayer( design, 
-                self.mediaPlayer, 
-                (0,0), (480//2,270), 
+        oh.MediaPlayer( design,
+                self.mediaPlayer,
+                (0,0), (480//2,270),
                 dispName=f"Player {self.friendlyName}",
                 volumes = (4,8,20),
-                sonosSleepTimer=False, 
-                favoritesPage=None, 
+                sonosSleepTimer=False,
+                favoritesPage=None,
                 sonosTvMode=False,
                 artwork = ((480//2+5,0), (480/2-5, 270)))
 
@@ -171,7 +171,7 @@ class HaspDemo(Manager):
             oh.Camera(design, (0,0), (480,260), camera)
         else:
             oh.Image(design, (0,0), (480,260), "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_1280.jpg")
-        
+
         self.addNavbar()
 
 
@@ -185,11 +185,11 @@ class HaspDemo(Manager):
 
         self.addNavbar()
 
-                   
-        
+
+
     def addNavbar(self):
-        oh.NavButtons(  self.design, 
-                        (480//6, 50), 
+        oh.NavButtons(  self.design,
+                        (480//6, 50),
                         (
                             ("Lbl",                 self.PAGE_LABELS),
                             (oh.ICON_LIGHTBULB,     self.PAGE_BUTTONS),
@@ -198,9 +198,9 @@ class HaspDemo(Manager):
                             (oh.ICON_CCTV,          self.PAGE_IMAGE),
                             (oh.ICON_RECYCLE_VARIANT, self.PAGE_LINE)
                         ))
-        
+
     def onChangeColor(self, obj):
-        color = obj.getTextColor() 
+        color = obj.getTextColor()
         if color == "Red":
             color = "Green"
         elif color == "Green":
@@ -211,12 +211,13 @@ class HaspDemo(Manager):
 
     def onButtonPushed(self, obj):
         self.sendMsgBox("Function Called!", autoClose=2000)
-        
+
+managers = [] # This needs to be global so that it remains in scope
 
 @time_trigger("startup")
 def main():
     # Create a HaspDemo manager for each plate defined in the psyscript config.yaml, see readme
-    managers = []
+    global managers
     for appConf in pyscript.app_config:
 
         name = appConf["friendly_name"]
@@ -227,7 +228,7 @@ def main():
         camera = appConf.get("camera", None)
 
         log.info(f"Creating HaspDemo for '{plateName}'")
-        
+
         manager = HaspDemo(name, plateName, resolution, mediaPlayer, lamp, camera)
         managers.append(manager)
         manager.sendDesign()
