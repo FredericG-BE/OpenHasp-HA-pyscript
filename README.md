@@ -44,7 +44,6 @@ Today the library supports a subset of openHasp features. I have been adding fea
 - External **Motion detector** can switch idle off.
 
 # Features and enhancements in the pipeline
-- Display Camera Image
 - More control on how an image is centered in the reserved canvas
 - Better Message Box support
 - Media Player enhancements:
