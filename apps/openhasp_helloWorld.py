@@ -2,13 +2,16 @@ import openhasp as oh
 import openhasp.style2 as myStyle # Or select another style
 
 # Adapt the settings below
-PLATE_NAME = "plate_test3"
+PLATE_NAME = "plate70"
 PLATE_RESOLUTION = (480,320)
 MY_LAMP_ENTITY = "light.bureau_spots"
 
+manager = None # This object should not get out of scope
 
-@time_trigger("startup")
+@time_trigger("startup") # This function will run when HA has started or when this code is (re-)loaded 
 def main():
+    global manager
+
     # Create a manager for the plate
     manager = oh.Manager(PLATE_NAME, PLATE_RESOLUTION)
 
@@ -36,4 +39,3 @@ def main():
 
     # Send the design now (and also later when the plate would restart)
     manager.sendDesign()
-
