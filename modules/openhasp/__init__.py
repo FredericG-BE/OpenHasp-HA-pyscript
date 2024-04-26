@@ -47,7 +47,7 @@ logSendDesign = True
 logSendDesignDetail = False
 logStaleMessages = False
 logImageHandling = False
-logVisible = True
+logVisible = False
 
 screenName2manager = {}
 
@@ -225,7 +225,8 @@ class Page(Obj):
         self.setParam("bg_color", None, "page.gb_color")
 
         self.isStartupPage = isStartupPage
-        self.objs = []
+        self.objs = {}
+        self.lastId = 0
         self.composedObjs = []
 
         if isStartupPage:
@@ -233,12 +234,12 @@ class Page(Obj):
 
     def addObj(self, obj):
         obj.setParam("page", self.pageNbr)
-        id = len(self.objs) + 1
-        assert id <= 255, "Too many objects on same page"
+        self.lastId += 1
+        id = self.lastId
+        assert id < 255, "Too many objects on same page"
         obj.setParam("id", id)
-        #self.pbs[f"p{obj.params['page']}b{obj.params['id']}"] = obj
 
-        self.objs.append(obj)
+        self.objs[id] = obj
         return obj
     
     def registerComposedObj(self, composedObj):
@@ -1071,7 +1072,7 @@ class Manager():
         for page in self.design.pages.values():
             jsonl += page.getJsonl()
             page.sent = True
-            for obj in page.objs:
+            for obj in page.objs.values():
                 n = obj.getJsonl()
                 if len(jsonl)+len(n) > 2000:
                     self.sendCmd("jsonl", jsonl)
@@ -1115,9 +1116,9 @@ class Manager():
                 pb = obj.split("b")
                 p = int(pb[0][1:])
                 b = int(pb[1])
-                log.info(f"p={p} b={b} {len(self.design.pages)} {len(self.design.pages[p].objs)} ")
+                #log.info(f"Event for p={p} b={b}")
                 try:
-                    self.design.pages[p].objs[b-1].onStateMsg(topic, payload)
+                    self.design.pages[p].objs[b].onStateMsg(topic, payload)
                 except KeyError:
                     log.info(f"MQTT event on unknown pb {obj}")
             elif obj == "sensors":
