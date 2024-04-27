@@ -1,6 +1,6 @@
 import openhasp as oh
 import openhasp.mdi as mdi
-from openhasp import Manager
+from openhasp import Manager, ComposedObj
 from openhasp.style1 import style as myStyle
 
 import math
@@ -16,8 +16,9 @@ def transformTime(design, value):
     return f"{t[0]}h {t[1]}m"
 
 
-class MyComposedObj():
+class MyComposedObj(ComposedObj):
     def __init__(self, design, coord, size, nbSegments, angleStep, color):
+        self.ComposedObj__init__(design)
         self.nbSegments = nbSegments
         self.coord = coord
         self.size = size
@@ -27,7 +28,6 @@ class MyComposedObj():
         self.cx = coord[0] + size[0]//2
         self.cy = coord[1] + size[1]//2
         self.r = min(size)//2
-        design.registerComposedObj(self)    # Needed to get the onVisible notifications
         design.registerForTimerTick(self)
         self.lineObj = oh.Line(design, (coord, coord), width=2, color=color)
         self.labelObj = oh.Label(design, (self.cx-50, self.cy-25), (100,50), "Angle", textColor=color)
@@ -47,8 +47,13 @@ class MyComposedObj():
             self.angle += 360
 
     def onVisible(self, visible):
+        if visible != self.visible:
+            if visible:
+                self.design.manager.sendMsgBox("Animation visible", textColor="Green", autoClose=1000)
+            else:
+                self.design.manager.sendMsgBox("Animation no longer visible", textColor="Red", autoClose=1000)
         self.visible = visible
-
+            
     def onTimerTick(self):
         if self.visible:
             self.updateLineObject()
