@@ -39,11 +39,13 @@ ICON_CCTV = "\uE7AE"
 ICON_RECYCLE_VARIANT = "\uF39D"
 ICON_LEAF = "\uE32A"
 
-logEntityEvents = False
-logMqttEvents = False
 logDiscovery = True
 logOnline = True
 logSendDesign = True
+
+logEntityEvents = False
+logTimeEvents = False
+logMqttEvents = False
 logSendDesignDetail = False
 logStaleMessages = False
 logImageHandling = False
@@ -264,7 +266,7 @@ class Label(Obj):
     def __init__(self, design, coord, size, text, font=None, textColor=None, align=None, mode=None, extraPar=None):
         self.Label__init__(design, coord, size, text, font, textColor, align, mode, extraPar)
 
-    def Label__init__(self, design, coord, size, text, font=None, textColor=None, align=None, mode=None, extraPar=None):
+    def Label__init__(self, design, coord, size, text="", font=None, textColor=None, align=None, mode=None, extraPar=None):
         self.Obj__init__(design=design, type="label", size=size, coord=coord, extraPar=extraPar)
         self.params["text"] = text
         self.setParam("text_font", font, "text.font")
@@ -866,6 +868,32 @@ class SonosFavorites(ComposedObj):
 
 
 class AnalogClock(ComposedObj):
+    class Indicator():
+        def __init__(self, timeSource, timeFormat="%H:%M", relR1=0.60, relR2=0.8, lineWidth=None, color="Red"):
+            self.timeSource = timeSource
+            self.timeFormat = timeFormat
+            self.relR1 = relR1
+            self.relR2 = relR2
+            self.lineWidth = lineWidth
+            self.color = color
+
+        def _onTimeChange(self, id):
+            if not self.clock.design.manager._checkInstanceId(id, "AnalogClock TimeChange"):
+                return
+            dts = state.get(self.timeSource)
+            try:
+                dt = datetime.datetime.strptime(dts, self.timeFormat)
+                dt = as_local(dt)
+                h = dt.hour
+                m = dt.minute
+            except:
+                log.error(f"Failed to parse time '{dts}'")
+                h = 0
+                m = 0
+            log.info(self.clock._getPoints((h+m/60)*5, self.clock.r*self.relR1, self.clock.r*self.relR1))
+            self.line.setPoints(self.clock._getPoints((h+m/60)*5, self.clock.r*self.relR1, self.clock.r*self.relR2))
+    
+
     def __init__(self, design, center, r, timeSource="sensor.time", timeFormat="%H:%M", lineWidth = None, color=None, showSec=False, alarmSource=None, alarmColor=None):
         self.ComposedObj__init__(design)
         self.center = center
@@ -873,29 +901,42 @@ class AnalogClock(ComposedObj):
         self.timeSource=timeSource
         self.alarmSource=alarmSource
         self.timeFormat=timeFormat
+        self.lineWidth = lineWidth
+
+        self.indicators = []
 
         if color is None:
             color = self.design.style.get("clock.color", None)
 
-        width = lineWidth
-        if width is None: 
-            width = int(r/25)+1
+        if self.lineWidth is None: 
+            self.lineWidth = int(r/25)+1
 
         for m in range(0, 60, 5):
             points = self._getPoints(m, .8*r if m % 15 == 0 else .9*r, r)
-            Line(design, points, width=width, color=color)
+            Line(design, points, width=self.lineWidth, color=color)
 
-        self.smallHand = Line(design, (center, center), width=width, color=color)
-        self.bigHand = Line(design, (center, center), width=width, color=color)
+        self.smallHand = Line(design, (center, center), width=self.lineWidth, color=color)
+        self.bigHand = Line(design, (center, center), width=self.lineWidth, color=color)
         self.tfMain = triggerFactory_entityChange(timeSource, self._onTimeChange, self.design.manager.instanceId)
         self._onTimeChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
 
         if alarmSource is not None:
-            self.alarmHand = Line(design, (center, center), width=(width//2)+1, color=alarmColor)
+            self.alarmHand = Line(design, (center, center), width=(self.lineWidth//2)+1, color=alarmColor)
             self.tfAlarm = triggerFactory_entityChange(alarmSource, self._onAlarmChange, self.design.manager.instanceId)
             self._onAlarmChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
 
         self.design.otherObjs.append(self) # Keep a reference to this object to keep the references to the trigger functions
+
+    def addIndicator(self, indicator):
+        indicator.clock = self
+        if indicator.lineWidth is None:
+            indicator.lineWidth = self.lineWidth*1.5
+        indicator.line = Line(self.design, (self.center, self.center), width=indicator.lineWidth, color=indicator.color)
+        indicator.ftTimeChange = triggerFactory_entityChange(indicator.timeSource, indicator._onTimeChange, self.design.manager.instanceId)
+        self.indicators.append(indicator)
+
+        indicator._onTimeChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
+        
 
     def _onTimeChange(self, id):
         if not self.design.manager._checkInstanceId(id, "AnalogClock TimeChange"):
@@ -1140,11 +1181,11 @@ class Manager():
                 self.state.setAttr("sw", payload["sw"])
 
 def triggerFactory_time(timeSpec, func, cookie):
-    if logEntityEvents: log.info(f">> Configure time trigger \"{timeSpec}\" func={func} cookie={cookie}")
+    if logTimeEvents: log.info(f">> Configure time trigger \"{timeSpec}\" func={func} cookie={cookie}")
 
     @time_trigger(timeSpec)
     def func_trig(value=None):
-        if logEntityEvents: log.info(f">> Time trigger \"{timeSpec}\" change: func={func} cookie={cookie}")
+        if logTimeEvents: log.info(f">> Time trigger \"{timeSpec}\" change: func={func} cookie={cookie}")
         func(cookie)
 
     return func_trig

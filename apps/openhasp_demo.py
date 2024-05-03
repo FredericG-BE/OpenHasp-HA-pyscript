@@ -139,7 +139,9 @@ class HaspDemo(Manager):
         #
         oh.Page(design, self.PAGE_CLOCKS)
 
-        oh.AnalogClock(design, (480/2, 110), 100, timeSource="sensor.time")
+        obj = oh.AnalogClock(design, (480/2, 110), 100, timeSource="sensor.time")
+        obj.addIndicator(oh.AnalogClock.Indicator(timeSource="sun.sun.next_rising", timeFormat="%Y-%m-%dT%H:%M:%S.%f%z", color="Yellow"))
+        obj.addIndicator(oh.AnalogClock.Indicator(timeSource="sun.sun.next_setting", timeFormat="%Y-%m-%dT%H:%M:%S.%f%z", color="Red"))
 
         oh.Label(design, (20,110), (100,40), "Sunrise")
         oh.AnalogClock(design, (70,200), 50, timeSource="sun.sun.next_rising", timeFormat="%Y-%m-%dT%H:%M:%S.%f%z")
