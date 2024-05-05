@@ -565,17 +565,22 @@ class Camera(ComposedObj):
         self.refreshActive = False
         
         self.image = Image(design, coord, size)
-        self.image.setHidden(True)
-
-        design.registerForTimerTick(self)
+        
+        if self.refreshRateSec is not None:
+            design.registerForTimerTick(self)
+            self.image.setHidden(True)
 
     def startRefreshing(self):
+        if self.refreshRateSec is None:
+            return
         self.image.setHidden(False)
         self.refresh()
         self.refreshCountDown = self.refreshRateSec 
         self.refreshActive = True
 
     def stopRefreshing(self): 
+        if self.refreshRateSec is None:
+            return
         self.image.setHidden(True)
         self.refreshActive = False
 
