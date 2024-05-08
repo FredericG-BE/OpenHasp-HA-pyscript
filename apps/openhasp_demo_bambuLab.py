@@ -6,18 +6,22 @@ from openhasp.style1 import style as myStyle
 import datetime
 from homeassistant.util.dt import as_local
 
+def spreadHorizontally(coordX, sizeX, itemUnits, spaceUnits):
+    totalUnits = sum(itemUnits) + spaceUnits * (len(itemUnits) + 1)
+    unitSize = sizeX / totalUnits
+    return [(coordX + int( (sum(itemUnits[0:i]) + ((i+1) * spaceUnits)) * unitSize), int(itemUnits[i] * unitSize)) for i in range(len(itemUnits))]
 
 class Arc(Obj):
     def __init__(self, design, coord, size, min=0, max=100, value=50, rotation=0, color=None, adjustable=False, startAngle=None, endAngle=None, startAngle10=None, endAngle10=None):
         self.Obj__init__(design=design, type="arc", coord=coord, size=size)
-        
+
         self.setParam("min", min)
         self.setParam("max", max)
         self.setParam("val", value)
         self.setParam("rotation", rotation)
         if adjustable is not None:
             self.setParam("adjustable", adjustable)
-        if startAngle is not None:    
+        if startAngle is not None:
             self.setParam("start_angle", startAngle)
         if endAngle is not None:
             self.setParam("endAngle", endAngle)
@@ -31,7 +35,7 @@ class Arc(Obj):
 
     def setValue(self, value):
         self.setParam("val", value)
-        
+
 
 
 class BambuLabPrinter(ComposedObj):
@@ -41,20 +45,19 @@ class BambuLabPrinter(ComposedObj):
 
         self.camera = oh.Camera(design, coord, size, f"image.{printer}_camera")
 
-        clockR = 70
         margin = 15
         y = coord[1] + margin
-        
-        self.coverImage = oh.Camera(design, (coord[0]+15, y), (clockR*2, clockR*2), f"image.{printer}_cover_image", refreshRateSec=None)
+        xsCover, xsStatus, xsLight, xsPause, xsPower, xsClock = spreadHorizontally(coord[0], size[0], (3,7,1,1,1,3), .25)
 
-        self.statusLabel = oh.Label(design, (coord[0]+size[0]/2-200, 10), (400, 50), "", align="center")
-        self.statusLabel.setParam("bg_opa", 80*255/100)
-        self.statusLabel.setParam("bg_color", None, "page.gb_color")
-        self.statusLabel.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["text.color"])
-        
+
+        # Cover image
+        self.coverImage = oh.Camera(design, (xsCover[0], y), (xsCover[1], xsCover[1]), f"image.{printer}_cover_image", refreshRateSec=None)
+
+        # Clock
+        clockR = xsClock[1]//2
+        c = (xsClock[0] + clockR, y + clockR)
+
         # Clock backplate
-        c = (coord[0] + size[0] - margin - clockR, y + clockR) 
-        
         bpr = clockR
         obj = oh.EmptyObj(design, (c[0]-bpr, c[1]-bpr), (2*bpr,2*bpr))
         obj.setParam("bg_opa", 80*255/100)
@@ -68,12 +71,24 @@ class BambuLabPrinter(ComposedObj):
 
         # Clock
         self.clock = oh.AnalogClock(design, c, clockR*0.95)
-        
+
+
+        # Status label
+        self.statusLabel = oh.Label(design, (xsStatus[0], y), (xsStatus[1], 50), "", align="left")
+        self.statusLabel.setParam("bg_opa", 80*255/100)
+        self.statusLabel.setParam("bg_color", None, "page.gb_color")
+        self.statusLabel.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["text.color"])
+
+        # Buttons
+        self.powerIcon = oh.OnOffButton(design, (xsPower[0], y), (xsPower[1], 50), text=oh.ICON_POWER, entity="switch.plug3")
+        self.lightIcon = oh.OnOffButton(design, (xsPause[0], y), (xsPause[1], 50), text=oh.ICON_PAUSE, entity=f"light.{self.printer}_chamber_light")
+        self.lightIcon = oh.OnOffButton(design, (xsLight[0], y), (xsLight[1], 50), text=oh.ICON_LIGHTBULB, entity=f"light.{self.printer}_chamber_light")
+
         self.tf1 = oh.triggerFactory_entityChange(f"sensor.{printer}_current_stage", self._onStateChange, self.design.manager.instanceId)
         self.tf2 = oh.triggerFactory_entityChange(f"sensor.{printer}_print_progress", self._onStateChange, self.design.manager.instanceId)
         self.tf3 = oh.triggerFactory_entityChange(f"sensor.{printer}_start_time", self._onStateChange, self.design.manager.instanceId)
         self.tf3 = oh.triggerFactory_entityChange(f"sensor.{printer}_end_time", self._onStateChange, self.design.manager.instanceId)
-        self._onStateChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in        
+        self._onStateChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
 
     def _onStateChange(self, id):
         def time2Angle(dts, timeFormat):
@@ -86,24 +101,24 @@ class BambuLabPrinter(ComposedObj):
             #     log.error(f"Failed to parse time '{dts}'")
             #     h = 0
             #     m = 0
-            if h >= 12: 
+            if h >= 12:
                 h -= 12
             return int((h+m/60)/12*360)
 
         if not self.design.manager._checkInstanceId(id, "Printer StateChange"):
             return
-        
-        stage = state.get(f"sensor.{self.printer}_current_stage") 
-        
+
+        stage = state.get(f"sensor.{self.printer}_current_stage")
+
         # Set status label
         status = stage.replace("_", " ")
         status = status[0].upper()+status[1:]
         if stage == "printing":
             status += " " + state.get(f"sensor.{self.printer}_print_progress") + "%"
-        self.statusLabel.setText(status)
+        self.statusLabel.setText(" "+status)
 
         # Set start/end indicator
-        if stage != "idle":
+        if stage not in ("idle", "offline"):
             startTimeAngle = time2Angle(state.get(f"sensor.{self.printer}_start_time"), timeFormat="%Y-%m-%d %H:%M:%S")
             endTimeAngle = time2Angle(state.get(f"sensor.{self.printer}_end_time"), timeFormat="%Y-%m-%d %H:%M:%S")
             self.printTimeArc.setParam("start_angle", startTimeAngle)
@@ -111,7 +126,7 @@ class BambuLabPrinter(ComposedObj):
             self.printTimeArc.setHidden(False)
         else:
             self.printTimeArc.setHidden(True)
-        
+
         self.coverImage.refresh()
 
 
@@ -142,8 +157,7 @@ def main():
         plateName = appConf["plate_name"]
         resolution = (appConf["resolution_x"], appConf["resolution_y"])
         printer = appConf["printer"]
-        
+
         manager = MyPlateManager(name, plateName, resolution, printer)
         managers.append(manager)
         manager.sendDesign()
-
