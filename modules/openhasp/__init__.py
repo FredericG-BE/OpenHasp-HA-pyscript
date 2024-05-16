@@ -475,6 +475,38 @@ class Slider(Obj):
         else:
             service.call("homeassistant","turn_off", entity_id=self.entity)
 
+class Arc(Obj):
+    def __init__(self, design, coord, size, min=0, max=100, value=50, rotation=0, color=None, adjustable=False, startAngle=None, endAngle=None, startAngle10=None, endAngle10=None):
+        self.Obj__init__(design=design, type="arc", coord=coord, size=size)
+
+        self.setParam("min", min)
+        self.setParam("max", max)
+        self.setParam("val", value)
+        self.setParam("rotation", rotation)
+        if adjustable is not None:
+            self.setParam("adjustable", adjustable)
+        if startAngle is not None:
+            self.setParam("start_angle", startAngle)
+        if endAngle is not None:
+            self.setParam("endAngle", endAngle)
+        if startAngle10 is not None:
+            self.setParam("start_angle10", startAngle10)
+        if endAngle10 is not None:
+            self.setParam("end_angle10", endAngle10)
+
+        if color is not None:
+            self.setParam("line_color10", color)
+
+    def setStartAngle(self, angle):
+        self.setParam("start_angle", angle)
+
+    def setEndAngle(self, angle):
+        self.setParam("end_angle", angle)
+    
+    def setValue(self, value):
+        self.setParam("val", value)
+
+
 class Design():
     def __init__(self, manager, screenSize, style=None):
         self.manager = manager
@@ -1260,3 +1292,8 @@ def brightness2Val(desing, state):
     if state is None:
         state = 0
     return int(int(state) / 255 * 100)
+
+def spreadHorizontally(coordX, sizeX, itemUnits, spaceUnits):
+    totalUnits = sum(itemUnits) + spaceUnits * (len(itemUnits) + 1)
+    unitSize = sizeX / totalUnits
+    return [(coordX + int( (sum(itemUnits[0:i]) + ((i+1) * spaceUnits)) * unitSize), int(itemUnits[i] * unitSize)) for i in range(len(itemUnits))]
