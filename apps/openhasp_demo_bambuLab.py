@@ -63,18 +63,15 @@ class BambuLabPrinter(ComposedObj):
 
     def _onStateChange(self, id):
         def time2Angle(dts, timeFormat):
-            #try:
             dt = datetime.datetime.strptime(dts, timeFormat)
             dt = as_local(dt)
             h = dt.hour
             m = dt.minute
-            # except:
-            #     log.error(f"Failed to parse time '{dts}'")
-            #     h = 0
-            #     m = 0
             if h >= 12:
                 h -= 12
-            return int((h+m/60)/12*360)
+            a = int((h+m/60)/12*360)
+            log.info(f"{dts} ===>  {h}:{m}  ==> {a}")
+            return a
 
         if not self.design.manager._checkInstanceId(id, "Printer StateChange"):
             return
