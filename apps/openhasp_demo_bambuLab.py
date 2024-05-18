@@ -1,17 +1,3 @@
-
-# configuration example:
-#
-#     openhasp_demo_bambuLab:
-#
-#     - friendly_name: "Bambu p1s"
-#       plate_name: "plate70"
-#       resolution_x: 800
-#       resolution_y: 480
-#       printer: "p1s_..."
-#       power_switch: "switch.plug3"
-
-
-
 import openhasp as oh
 import openhasp.mdi as mdi
 from openhasp import Manager, ComposedObj
@@ -27,6 +13,7 @@ class BambuLabPrinter(ComposedObj):
 
         self.camera = oh.Camera(design, coord, size, f"image.{printer}_camera")
 
+        # Calculate X-coordinates and x-sizes
         margin = 15
         y = coord[1] + margin
         powerButtonSize = 0 if powerSwitch is None else 1
@@ -39,7 +26,8 @@ class BambuLabPrinter(ComposedObj):
         clockR = xsClock[1]//2
         c = (xsClock[0] + clockR, y + clockR)
 
-        # Clock backplate
+        # Clock backplate  
+        # TODO: This could become a feature of AnalogClock
         bpr = clockR
         obj = oh.EmptyObj(design, (c[0]-bpr, c[1]-bpr), (2*bpr,2*bpr))
         obj.setParam("bg_opa", 80*255/100)
@@ -47,11 +35,12 @@ class BambuLabPrinter(ComposedObj):
         obj.setBorder(self.design.style["btn.border_width"], bpr, self.design.style["text.color"])
 
         # PrintTime Arc
+        # TODO: also this could a feature of AnalogClock
         arcR = clockR // 2
         self.printTimeArc = oh.Arc(design, (c[0]-arcR, c[1]-arcR), (2*arcR,2*arcR), rotation=-90, value=100, color="Red")
         self.printTimeArc.setHidden(True)
 
-        # Clock
+        # The Analog Clock itself
         self.clock = oh.AnalogClock(design, c, clockR*0.95)
 
         # Buttons
@@ -65,7 +54,7 @@ class BambuLabPrinter(ComposedObj):
         self.statusLabel.setParam("bg_color", None, "page.gb_color")
         self.statusLabel.setBorder(self.design.style["btn.border_width"], self.design.style["btn.radius"], self.design.style["text.color"])
 
-
+        # Even triggers
         self.tf1 = oh.triggerFactory_entityChange(f"sensor.{printer}_current_stage", self._onStateChange, self.design.manager.instanceId)
         self.tf2 = oh.triggerFactory_entityChange(f"sensor.{printer}_print_progress", self._onStateChange, self.design.manager.instanceId)
         self.tf3 = oh.triggerFactory_entityChange(f"sensor.{printer}_start_time", self._onStateChange, self.design.manager.instanceId)
