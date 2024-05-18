@@ -7,14 +7,16 @@ Traditionally the designs of the openHASP screen pages are described in json(l) 
 
 This library is based on [HACS pyscript](https://hacs-pyscript.readthedocs.io/en/latest/) and communicates directly via mqtt messages with openHASP devices.
 
-![HelloWorld](https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/9b135649-75b5-46fd-aeea-e605f3431226)
+<p align="center">
+<img src="https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/9b135649-75b5-46fd-aeea-e605f3431226">
 
+<img src="https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/af62ddb9-cdf4-494d-9c5f-e6b39b9b685c">
+</p>
 
-![IMG_8840](https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/af62ddb9-cdf4-494d-9c5f-e6b39b9b685c)
 
 
 # State of the project
-Today the library supports a subset of openHasp features. I have been adding features as I needed them. At the time of writing, this repository is still private and the "Getting started" steps have not been confirmed by somebody else. 
+Today the library supports a subset of openHasp features. I have been adding features as I needed them.
 
 # Supported features today
 - Native objects:
@@ -24,8 +26,9 @@ Today the library supports a subset of openHasp features. I have been adding fea
     - **Switch**
     - **Slider**
     - **Line**
-    - **Image**; Images are fetched and resized and stored in www/openhasp-pyscript/temp by the library to be fetched by the plate.
-    - **MessageBox**
+    - **Image**; Images are fetched, resized and stored in www/openhasp-pyscript/temp by the library to be fetched by the plate.
+    - **MessageBox** (Basic support for now)
+    - **Arc** (Basic support for now)
 - "Composed" objects (combining native objects to form more complex functions):
     - **On/Off Button**
     - **Analog Clock**; Selectable HA entity providing the time and optional alarm time.
@@ -118,3 +121,38 @@ apps:
 ```  
 While the screen resolutions are passed here, the layout is not adapted to the provided resolution and is made for 480x320.
 This demo uses images, which will not work on devices without PSram.
+
+<p align="center">
+<img src="https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/abf97b57-d402-4c2a-8781-d888de8cc778" width="250">
+&nbsp
+<img src="https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/1784956a-d07f-4d1b-b9d4-9ebf7136d337" width="250">
+&nbsp
+<img src="https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/bdbfdef6-975a-4479-b9c0-70171e402b10" width="250">
+</p>
+
+
+# Another example showing the state of a BambuLab 3D printer, openhasp_demo_bambuLab.py
+
+This example assumes you have a BambuLab printer and the integration for HA installed. As in openhasp_demo.py, it requires to configured in config.yaml. An example could be:
+
+apps:
+  openhasp_demo_bambuLab:
+    - friendly_name: "Bambu p1s"
+      plate_name: "plate70"
+      resolution_x: 800
+      resolution_y: 480
+      printer: "p1s_..."  # Fill in the exact name of the printer name in HA
+      power_switch: "switch.printer"  # In case you have a switch to control control the power to your printer; this is optional
+
+The red arc in the clock indicate the start en end time of the print.
+<p align="center">
+<img src="https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/3b7f874f-10e5-47d9-bb0e-1402760dad78" width="500">
+</p>
+
+# More inspiration
+
+Alarm clock, the red hand indicates the alarm time set in the Sonos speaker.
+
+<img src="https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/e15b603d-ca24-4aaa-83ab-27b6adf01c28" width="250">
+<img src="https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/caa568f8-01fd-4113-a90d-9a7cb17fbeb0" width="250">
+<img src="https://github.com/FredericG-BE/OpenHasp-HA-pyscript/assets/11998085/f11ffbfb-9c91-4724-8675-bc138ce6b8ed" width="250">
