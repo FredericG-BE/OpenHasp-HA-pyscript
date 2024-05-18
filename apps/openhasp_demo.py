@@ -187,6 +187,8 @@ class HaspDemo(Manager):
         #
         oh.Page(design, self.PAGE_LINE)
 
+        oh.Label(design, (0,10), (480,50), "Rotating Objects")
+
         MyComposedObj(design, (0,0), (480//2,260), 4, 5, "Red")
         MyComposedObj(design, (480//2,0), (480//2,260), 3, -1, "Blue")
 
