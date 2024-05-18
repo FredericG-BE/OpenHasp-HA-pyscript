@@ -70,7 +70,7 @@ class BambuLabPrinter(ComposedObj):
             if h >= 12:
                 h -= 12
             a = int((h+m/60)/12*360)
-            log.info(f"{dts} ===>  {h}:{m}  ==> {a}")
+            # log.info(f"{dts} ===>  {h}:{m}  ==> {a}")
             return a
 
         if not self.design.manager._checkInstanceId(id, "Printer StateChange"):
