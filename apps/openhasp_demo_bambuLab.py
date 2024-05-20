@@ -37,7 +37,7 @@ class BambuLabPrinter(ComposedObj):
         # PrintTime Arc
         # TODO: also this could a feature of AnalogClock
         arcR = clockR // 2
-        self.printTimeArc = oh.Arc(design, (c[0]-arcR, c[1]-arcR), (2*arcR,2*arcR), rotation=-90, value=100, color="Red")
+        self.printTimeArc = oh.Arc(design, (c[0]-arcR, c[1]-arcR), (2*arcR,2*arcR), min=0, max=100, value=100, rotation = 270, color="Red")
         self.printTimeArc.setHidden(True)
 
         # The Analog Clock itself
@@ -89,8 +89,7 @@ class BambuLabPrinter(ComposedObj):
         if stage not in ("idle", "offline"):
             startTimeAngle = time2Angle(state.get(f"sensor.{self.printer}_start_time"), timeFormat="%Y-%m-%d %H:%M:%S")
             endTimeAngle = time2Angle(state.get(f"sensor.{self.printer}_end_time"), timeFormat="%Y-%m-%d %H:%M:%S")
-            self.printTimeArc.setStartAngle(startTimeAngle)
-            self.printTimeArc.setEndAngle(endTimeAngle)
+            self.printTimeArc.setAngles(startTimeAngle, endTimeAngle)
             self.printTimeArc.setHidden(False)
         else:
             self.printTimeArc.setHidden(True)

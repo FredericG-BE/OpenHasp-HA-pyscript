@@ -476,33 +476,25 @@ class Slider(Obj):
             service.call("homeassistant","turn_off", entity_id=self.entity)
 
 class Arc(Obj):
-    def __init__(self, design, coord, size, min=0, max=100, value=50, rotation=0, color=None, adjustable=False, startAngle=None, endAngle=None, startAngle10=None, endAngle10=None):
+    def __init__(self, design, coord, size, min=0, max=100, value=50, rotation=270, color=None, adjustable=False, startAngle=0, endAngle=360):
         self.Obj__init__(design=design, type="arc", coord=coord, size=size)
 
         self.setParam("min", min)
         self.setParam("max", max)
         self.setParam("val", value)
-        self.setParam("rotation", rotation)
+        self.rotation = rotation 
         if adjustable is not None:
             self.setParam("adjustable", adjustable)
-        if startAngle is not None:
-            self.setParam("start_angle", startAngle)
-        if endAngle is not None:
-            self.setParam("endAngle", endAngle)
-        if startAngle10 is not None:
-            self.setParam("start_angle10", startAngle10)
-        if endAngle10 is not None:
-            self.setParam("end_angle10", endAngle10)
-
         if color is not None:
             self.setParam("line_color10", color)
+        self.setAngles(startAngle, endAngle)
 
-    def setStartAngle(self, angle):
-        self.setParam("start_angle", angle)
+    def setAngles(self, startAngle, endAngle):
+        self.setParam("start_angle", startAngle + self.rotation)
+        self.setParam("start_angle10", startAngle + self.rotation)
+        self.setParam("end_angle", endAngle + self.rotation)
+        self.setParam("end_angle10", endAngle + self.rotation)
 
-    def setEndAngle(self, angle):
-        self.setParam("end_angle", angle)
-    
     def setValue(self, value):
         self.setParam("val", value)
 
