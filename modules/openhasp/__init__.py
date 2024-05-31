@@ -1200,9 +1200,10 @@ class Manager():
                 b = int(pb[1])
                 #log.info(f"Event for p={p} b={b}")
                 try:
-                    self.design.pages[p].objs[b].onStateMsg(topic, payload)
+                    obj = self.design.pages[p].objs[b]
                 except KeyError:
                     log.info(f"MQTT event on unknown pb {obj}")
+                obj.onStateMsg(topic, payload)
             elif obj == "sensors":
                 sensors = json.loads(payload)
                 self.state.activityDetected()
