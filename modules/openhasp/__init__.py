@@ -496,10 +496,16 @@ class Arc(Obj):
         self.setAngles(startAngle, endAngle)
 
     def setAngles(self, startAngle, endAngle):
-        self.setParam("start_angle", startAngle + self.rotation)
-        self.setParam("start_angle10", startAngle + self.rotation)
-        self.setParam("end_angle", endAngle + self.rotation)
-        self.setParam("end_angle10", endAngle + self.rotation)
+       
+        a = startAngle + self.rotation
+        while a > 360: a -= 360
+        self.setParam("start_angle", a)
+        self.setParam("start_angle10", a)
+
+        a = endAngle + self.rotation
+        while a > 360: a -= 360
+        self.setParam("end_angle", a)
+        self.setParam("end_angle10", a)
 
     def setValue(self, value):
         self.setParam("val", value)
