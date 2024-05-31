@@ -32,7 +32,7 @@ def main():
     obj.linkText("sensor.time") # Link the label text to HA entity sensor.time 
 
     # Add analog clock
-    oh.AnalogClock(design, center=(480/2,130), r=100, timeSource="sensor.time")
+    oh.AnalogClock(design, center=(480/2,130), r=100, timeSource="sensor.time", showSec=True)
 
     # Add a on/off button controlling a light
     oh.OnOffButton(design, coord=(50,250), size=(380,60), text="Push me", entity=MY_LAMP_ENTITY, icon=oh.ICON_WALL_SCONCE)

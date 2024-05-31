@@ -939,9 +939,10 @@ class AnalogClock(ComposedObj):
         self.ComposedObj__init__(design)
         self.center = center
         self.r = r
-        self.timeSource=timeSource
-        self.alarmSource=alarmSource
-        self.timeFormat=timeFormat
+        self.timeSource = timeSource
+        self.alarmSource = alarmSource
+        self.timeFormat = timeFormat
+        self.showSec = showSec
         self.lineWidth = lineWidth
 
         self.indicators = []
@@ -966,6 +967,11 @@ class AnalogClock(ComposedObj):
             self.tfAlarm = triggerFactory_entityChange(alarmSource, self._onAlarmChange, self.design.manager.instanceId)
             self._onAlarmChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
 
+        if showSec:
+            self.secHand = Line(design, (center, center), width=(self.lineWidth//2)+1, color=self.design.style.get("clock.sec.color", "Red")) 
+            self.sec = 0
+            design.registerForTimerTick(self)
+
         self.design.otherObjs.append(self) # Keep a reference to this object to keep the references to the trigger functions
 
     def addIndicator(self, indicator):
@@ -977,11 +983,11 @@ class AnalogClock(ComposedObj):
         self.indicators.append(indicator)
 
         indicator._onTimeChange(self.design.manager.instanceId) # Mimic a change so that the correct value is filled in
-        
 
     def _onTimeChange(self, id):
         if not self.design.manager._checkInstanceId(id, "AnalogClock TimeChange"):
             return
+        self.sec = 0
         dts = state.get(self.timeSource)
         try:
             dt = datetime.datetime.strptime(dts, self.timeFormat)
@@ -996,6 +1002,11 @@ class AnalogClock(ComposedObj):
             m = 0
         self.smallHand.setPoints(self._getPoints((h+m/60)*5, r*-.1, r*.55))
         self.bigHand.setPoints(self._getPoints(m, r*-.1, r*.77))
+
+    def onTimerTick(self):
+        if self.sec < 60:
+            self.sec += 1
+        self.secHand.setPoints(self._getPoints(self.sec, self.r*-.1, self.r*.60)) 
 
     def _onAlarmChange(self, id):
         if not self.design.manager._checkInstanceId(id, "AnalogClock AlarmChange"):

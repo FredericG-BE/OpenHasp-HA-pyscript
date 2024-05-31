@@ -42,4 +42,5 @@ style = (  {"page.gb_color":       PAL_BLACK,
             "line.color":          "Linen",
             "line.width":          10,
             "clock.color":         PAL_LIGHTBLUE,
+            "clock.sec.color":     "Red",
             })
