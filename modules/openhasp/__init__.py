@@ -1232,7 +1232,7 @@ def triggerFactory_time(timeSpec, func, cookie):
 
     return func_trig
 
-def triggerFactory_entityChange(entity, func, cookie):
+def triggerFactory_entityChange(entity, func, cookie, callNow=False):
     if logEntityEvents: log.info(f">> Configure trigger on \"{entity}\" func={func} cookie={cookie}")
 
     @state_trigger(entity)
@@ -1240,6 +1240,8 @@ def triggerFactory_entityChange(entity, func, cookie):
         if logEntityEvents: log.info(f">> Triggered on \"{entity}\" change: func={func} cookie={cookie}")
         func(cookie)
 
+    if callNow:
+        func(cookie)
     return func_trig
 
 def triggerFactory_entityAttrChange(entity, attr, func, cookie):
