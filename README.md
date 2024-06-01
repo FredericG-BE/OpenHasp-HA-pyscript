@@ -59,9 +59,9 @@ Today the library supports a subset of openHasp features. I have been adding fea
 
 # Getting started
 
-- MQTT must be enabled on HA and connected to an MQTT broker. A openHASP screen must be configured and connected to the broker. Perhaps a good idea is to start from a standard setup with the standard HA integration to verify the MQTT/openHASP setup.
+- **MQTT** MQTT must be enabled on HA and connected to an MQTT broker. An openHASP screen must be configured and connected to the broker. Perhaps a good idea is to start from a standard setup with the standard HA integration to verify the MQTT/openHASP setup.
 - **Install HACS pyscript.** [See the pysript manual](https://hacs-pyscript.readthedocs.io/en/latest/installation.html#option-2-manual). Configure pyscript as described in the [pyscript manual](https://hacs-pyscript.readthedocs.io/en/latest/reference.html#configuration) where I suggest to use the approach where a config.yaml in the pyscript directory. "hass_is_global" and "allow_all_imports" should be set to true. 
-- Add *"dependencies": ["mqtt"]* to YOUR_HASS_CONFIG_DIRECTORY/custom_components/pyscript/manifest.json. On my system it looks like this:
+- **Add ```"dependencies": ["mqtt"]```** to YOUR_HASS_CONFIG_DIRECTORY/custom_components/pyscript/manifest.json. On my system it looks like this:
 ```
 {
   "domain": "pyscript",
@@ -70,12 +70,13 @@ Today the library supports a subset of openHasp features. I have been adding fea
   "dependencies": ["mqtt"]
 }
 ```
-- Install the openhasp/pyscript library:
+- **Install the openHasp-HA-pyscript library**:
 ```
     cd YOUR_HASS_CONFIG_DIRECTORY    # same place as configuration.yaml
     cd pyscript
     unzip OpenHasp-HA-pyscript-main.zip
 ```
+- **Make sure** the standard openHASP integration for HA is not/no longer active.
 - **Run the openhasp_helloWorld.py**
     - Modify the settings in YOUR_HASS_CONFIG_DIRECTORY/pyscript/apps/openhasp_helloWorld
     - Add openhasp_helloWorld to your YOUR_HASS_CONFIG_DIRECTORY/pyscript/config.yaml:
