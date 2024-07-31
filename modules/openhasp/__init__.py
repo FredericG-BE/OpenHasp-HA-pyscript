@@ -381,18 +381,23 @@ class Image(Obj):
 
     def setSrc(self, src):
         coord = self.coord # This is where the image source needs to be, will have to be changed if image needs to be zoomed
-        prepLocalSrc, prepPublicSrc, prepSize = imageHandling.prepareImage( src, 
-                                                        namePrefix=self.design.manager.name, 
-                                                        canvasSize=self.size, 
-                                                        resize=self.resize)
-        if logImageHandling: log.info(f"Image prepared src=\"{prepPublicSrc}\" size=\"{prepSize}\"")
-        if self.center:
-            # self.size is the canvas, prepPublicSrc is the size of the prepared image
-            newCoord = (coord[0] + (self.size[0]-prepSize[0])//2, coord[1] + (self.size[1]-prepSize[1])//2) 
-        else:
-            newCoord = coord
-        self.setCoord(newCoord)
-        self.setParam("src", prepPublicSrc)
+        prepLocalSrc = None
+        try:
+            prepLocalSrc, prepPublicSrc, prepSize = imageHandling.prepareImage( src, 
+                                                            namePrefix=self.design.manager.name, 
+                                                            canvasSize=self.size, 
+                                                            resize=self.resize)
+            if logImageHandling: log.info(f"Image prepared src=\"{prepPublicSrc}\" size=\"{prepSize}\"")
+            if self.center:
+                # self.size is the canvas, prepPublicSrc is the size of the prepared image
+                newCoord = (coord[0] + (self.size[0]-prepSize[0])//2, coord[1] + (self.size[1]-prepSize[1])//2) 
+            else:
+                newCoord = coord
+            self.setCoord(newCoord)
+            self.setParam("src", prepPublicSrc)
+        except Exception as e:
+            log.info(f"Failed to prepare image src=\"{src}\": {e}")   
+
 
         # Delete old file?
         if self.lastLocalPrepSrc is not None:
