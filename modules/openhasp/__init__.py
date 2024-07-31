@@ -500,6 +500,11 @@ class Arc(Obj):
             self.setParam("line_color10", color)
         self.setAngles(startAngle, endAngle)
 
+        # Some themes give it a border and background, remove that
+        self.setParam("bg_opa", 0)
+        self.setParam("border_side", 0)
+
+
     def setAngles(self, startAngle, endAngle):
        
         a = startAngle + self.rotation
@@ -514,6 +519,9 @@ class Arc(Obj):
 
     def setValue(self, value):
         self.setParam("val", value)
+
+    def setColor(self, color):
+        self.setParam("line_color10", color)
 
 
 class Design():
