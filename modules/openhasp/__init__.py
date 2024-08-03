@@ -207,7 +207,7 @@ class Obj():
         if logEntityEvents: log.info(f"_onEntityChange self={self} link={link}")
         try:
             value = state.get(link.entity)
-        except AttributeError:
+        except (AttributeError, NameError):
             log.warning(f"Failure to read {link.entity}")
             value = ""
         if link.transform is not None:
