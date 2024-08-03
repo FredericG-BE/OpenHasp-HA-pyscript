@@ -207,7 +207,7 @@ class Obj():
         if logEntityEvents: log.info(f"_onEntityChange self={self} link={link}")
         try:
             value = state.get(link.entity)
-        except (AttributeError, NameError):
+        except AttributeError:
             log.warning(f"Failure to read {link.entity}")
             value = ""
         if link.transform is not None:
@@ -614,17 +614,18 @@ class NavButtons(ComposedObj):
 
 
 class Camera(ComposedObj):
-    def __init__(self, design, coord, size, camera, refreshRateSec=5):
+    def __init__(self, design, coord, size, camera, refreshRateSec=5, waitSrc=None):
         self.ComposedObj__init__(design)        
         self.camera = camera
         self.refreshRateSec = refreshRateSec
+        self.waitSrc = waitSrc
         self.refreshActive = False
         
         self.image = Image(design, coord, size)
         
         if self.refreshRateSec is not None:
             design.registerForTimerTick(self)
-            self.image.setHidden(True)
+            self.stopRefreshing()
 
     def startRefreshing(self):
         if self.refreshRateSec is None:
@@ -638,6 +639,9 @@ class Camera(ComposedObj):
         if self.refreshRateSec is None:
             return
         self.image.setHidden(True)
+        if self.waitSrc is not None:
+            log.info(f"stopRefreshing {self.waitSrc}")
+            self.image.setSrc(self.waitSrc)
         self.refreshActive = False
 
     def onVisible(self, visible):
