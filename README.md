@@ -136,6 +136,7 @@ This demo uses images, which will not work on devices without PSram.
 
 This example assumes you have a BambuLab printer and the integration for HA installed. As in openhasp_demo.py, it requires to configured in config.yaml. An example could be:
 
+```
 apps:
   openhasp_demo_bambuLab:
     - friendly_name: "Bambu p1s"
@@ -144,6 +145,7 @@ apps:
       resolution_y: 480
       printer: "p1s_..."  # Fill in the exact name of the printer name in HA
       power_switch: "switch.printer"  # In case you have a switch to control control the power to your printer; this is optional
+```
 
 The red arc in the clock indicate the start en end time of the print.
 <p align="center">
