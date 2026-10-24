@@ -78,6 +78,7 @@ class Obj():
         self.design = design
         self.type = type
         self.params = {}
+        self.disabled = False
         if type is not None:
             self.params["obj"] = type
         if extraPar is not None:
@@ -112,6 +113,9 @@ class Obj():
 
     def setHidden(self, hidden):
         self.setParam("hidden", "1" if hidden else "0")
+
+    def setDisabled(self, disabled):
+        self.disabled = bool(disabled)
 
     def setClipCorner(self):
         self.setParam("clip_corner", 1)
@@ -178,6 +182,8 @@ class Obj():
 
     def onStateMsg(self, topic, payload):
         # Handling an MQTT state update for this object
+        if self.disabled:
+            return
         payload = json.loads(payload)
         try:
             event = payload["event"]
@@ -348,6 +354,33 @@ class Button(Label):
 
         self.setShadow(None, "btn")
 
+    def setDisabled(self, disabled):
+        disabled = bool(disabled)
+        if self.disabled == disabled:
+            return
+
+        params = {
+            "text_color": "btn.disabled.text_color",
+            "bg_color": "btn.disabled.bg_color",
+            "border_color": "btn.disabled.border_color",
+            "value_color": "btn.disabled.value_color",
+        }
+        if disabled:
+            self._enabledParams = {
+                param: self.params[param]
+                for param in params
+                if param in self.params
+            }
+            Obj.setDisabled(self, True)
+            for param, styleName in params.items():
+                value = self.design.style.get(styleName)
+                if value is not None and param in self.params:
+                    self.setParam(param, value)
+        else:
+            Obj.setDisabled(self, False)
+            for param, value in getattr(self, "_enabledParams", {}).items():
+                self.setParam(param, value)
+            self._enabledParams = {}
 
     def addIcon(self, icon, x, y, font=None):
         self.setParam("value_str", icon)
@@ -787,10 +820,15 @@ class MediaPlayer(ComposedObj):
         if volumes is not None: yTotal += dy
         if sonosSleepTimer or favoritesPage is not None or sonosTvMode: yTotal += dy
             
-        if size[1] > yTotal:   
+        if size[1] >= yTotal:
             y += (size[1] - yTotal) // 2 # center vertically
         else:
-            log.error("Media player needs more room than provided")
+            log.error(f"Media player '{player}' needs more vertical room than provided: "
+                      f"height needed={yTotal}, height provided={size[1]} (short by {yTotal - size[1]}), "
+                      f"coord={coord}, size={size}, "
+                      f"rows of {dy}px: title+buttons=2, dispName={dispName is not None}, "
+                      f"volumes={volumes is not None}, "
+                      f"sleepTimer/favorites/tvMode={sonosSleepTimer or favoritesPage is not None or sonosTvMode}")
         
         if artwork is not None:
             self.artwork = MediaArtwork(design, player, *artwork)
@@ -1236,16 +1274,17 @@ class Manager():
         elif topic[2] == "state":
             obj = topic[3]
             #log.info(f"===> state of obj {obj}")
-            if re.search("p[0-9]+b[0-9]+", obj) is not None:
+            match = re.fullmatch(r"p([0-9]+)b([0-9]+)", obj)
+            if match is not None:
                 # it has the pb format
-                pb = obj.split("b")
-                p = int(pb[0][1:])
-                b = int(pb[1])
+                p = int(match.group(1))
+                b = int(match.group(2))
                 #log.info(f"Event for p={p} b={b}")
                 try:
                     obj = self.design.pages[p].objs[b]
                 except KeyError:
-                    log.info(f"MQTT event on unknown pb {obj}")
+                    log.info(f"MQTT event on unknown pb p{p}b{b}")
+                    return
                 obj.onStateMsg(topic, payload)
             elif obj == "sensors":
                 sensors = json.loads(payload)

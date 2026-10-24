@@ -29,6 +29,8 @@ style = (  {"page.gb_color":       PAL_BLACK,
                 # Disabled
                 "btn.disabled.text_color":  "Gray",    
                 "btn.disabled.bg_color":    PAL_BLACK,
+                "btn.disabled.border_color": "Gray",
+                "btn.disabled.value_color": "Gray",
             
 
             "switch.border_color":  PAL_LIGHTBLUE,
