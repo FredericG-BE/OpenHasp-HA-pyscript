@@ -130,11 +130,17 @@ class Obj():
             self.setParam("shadow_ofs_x", shadow[3][0])
             self.setParam("shadow_ofs_y", shadow[3][1])    
 
+    def setBorderColor(self, color):
+        self.setParam("border_color", color)   
+
     def setBorder(self, width, radius, color=None):
         self.setParam("border_width", width)
         self.setParam("radius", radius)
         if color is not None:
-            self.setParam("border_color", color)    
+            self.setParam("border_color", color)  
+
+    def setOpacity(self, opacity):
+        self.setParam("opacity", opacity)      
 
     def setParam(self, param, value, styleName=None):
         if value is None:
@@ -207,7 +213,7 @@ class Obj():
         if logEntityEvents: log.info(f"_onEntityChange self={self} link={link}")
         try:
             value = state.get(link.entity)
-        except AttributeError:
+        except (AttributeError, NameError):
             log.warning(f"Failure to read {link.entity}")
             value = ""
         if link.transform is not None:
@@ -223,7 +229,7 @@ class Obj():
         if logEntityEvents: log.info(f"_onEntityAttrChange self={self} link={link}")
         try:
             value = state.getattr(link.entity)[link.entityAttr]
-        except (AttributeError, KeyError):
+        except Exception:
             log.warning(f"Failure to read {link.entity}.{link.entityAttr}")
             value = ""
         if link.transform is not None:
@@ -343,9 +349,9 @@ class Button(Label):
         self.setShadow(None, "btn")
 
 
-    def addIcon(self, icon, x, y):
+    def addIcon(self, icon, x, y, font=None):
         self.setParam("value_str", icon)
-        self.setParam("value_font", None, "btn.icon.font")
+        self.setParam("value_font", font, "btn.icon.font")
         self.setParam("value_ofs_x", x)
         self.setParam("value_ofs_y", y)
         self.setParam("value_color", None, "btn.text_color")
@@ -374,6 +380,8 @@ class Line(Obj):
     def setPoints(self, points):
         self.setParam("points", "[" + ",".join([f"[{a},{b}]" for a,b in points]) + "]")
 
+    def setColor(self, color):
+        self.setParam("line_color", color)
 
 class Image(Obj):
     def __init__(self, design, coord, size=None, src=None, resize=False, center=True):

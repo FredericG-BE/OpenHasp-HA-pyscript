@@ -11,16 +11,25 @@ style = (  {"page.gb_color":       PAL_BLACK,
             "text.on.color":       "Gold",
             "text.off.color":      "Linen",
             
+            ## Button
             "btn.text_color":      "Linen",
             "btn.font":            32,
             "btn.bg_color":        PAL_BLACK,
-            "btn.radius":          20,
+            "btn.radius":          10,
             "btn.align":           "center",
             "btn.border_color":    PAL_BEIGE,
             "btn.border_width":    2,
-            "btn.on.bg_color":     PAL_DARKBLUE,
-            "btn.off.bg_color":    PAL_BLACK,
             "btn.icon.font":       32,
+                # On
+                "btn.on.text_color":        "Linen", 
+                "btn.on.bg_color":          PAL_DARKBLUE,
+                # Off
+                "btn.off.text_color":       "Linen", 
+                "btn.off.bg_color":         PAL_BLACK,
+                # Disabled
+                "btn.disabled.text_color":  "Gray",    
+                "btn.disabled.bg_color":    PAL_BLACK,
+            
 
             "switch.border_color":  PAL_LIGHTBLUE,
             "switch.off.bg_color":  PAL_BLACK,
@@ -43,4 +52,8 @@ style = (  {"page.gb_color":       PAL_BLACK,
             "line.width":          10,
             "clock.color":         PAL_LIGHTBLUE,
             "clock.sec.color":     "Red",
+
+            "climate.off.color":    "#303030",
+            "climate.cool.color":   PAL_LIGHTBLUE,
+            "climate.heat.color":   "Red"
             })

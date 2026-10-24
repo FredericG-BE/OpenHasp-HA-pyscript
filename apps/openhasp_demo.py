@@ -2,6 +2,7 @@ import openhasp as oh
 import openhasp.mdi as mdi
 from openhasp import Manager, ComposedObj
 from openhasp.style1 import style as myStyle
+from homeassistant.helpers.network import get_url
 
 import math
 
@@ -175,7 +176,7 @@ class HaspDemo(Manager):
         oh.Page(design, self.PAGE_IMAGE)
 
         if camera is not None:
-            oh.Camera(design, (0,0), (480,260), camera)
+            oh.Camera(design, (0,0), (480,260), camera, 5, get_url(hass, allow_external=False)+"/local/pictures/hourglass.png")
         else:
             oh.Image(design, (0,0), (480,260), "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_1280.jpg")
 

@@ -46,4 +46,12 @@ style = (  {"page.gb_color":        PAL_LIGHTGRAY,
             "line.width":          10,
             "clock.color":         PAL_OCHER,
             "clock.sec.color":     PAL_BLUE,
+
+            "group.border":         (5, 10, PAL_OCHER),
+            #"group.bg_color":       "Black",
+            "group.opacity":        50,
+
+            "climate.off.color":    PAL_LIGHTGRAY,
+            "climate.cool.color":   PAL_BLUE,
+            "climate.heat.color":   PAL_OCHER
             })
