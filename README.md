@@ -70,15 +70,18 @@ Today the library supports a subset of openHasp features. I have been adding fea
   "dependencies": ["mqtt"]
 }
 ```
-- **Install the openHasp-HA-pyscript library**:
+- **Install the openHasp-HA-pyscript library**. The repository root is the `openhasp` Python package, so it must end up as `pyscript/modules/openhasp`:
 ```
     cd YOUR_HASS_CONFIG_DIRECTORY    # same place as configuration.yaml
-    cd pyscript
-    unzip OpenHasp-HA-pyscript-main.zip
+    mkdir -p pyscript/modules pyscript/apps
+    git clone https://github.com/FredericG-BE/OpenHasp-HA-pyscript.git pyscript/modules/openhasp
+    # or, if your config directory is a git repository:
+    # git submodule add https://github.com/FredericG-BE/OpenHasp-HA-pyscript.git pyscript/modules/openhasp
+    cp pyscript/modules/openhasp/examples/openhasp_helloWorld.py pyscript/apps/
 ```
 - **Make sure** the standard openHASP integration for HA is not/no longer active.
 - **Run the openhasp_helloWorld.py**
-    - Modify the settings in YOUR_HASS_CONFIG_DIRECTORY/pyscript/apps/openhasp_helloWorld
+    - Modify the settings in YOUR_HASS_CONFIG_DIRECTORY/pyscript/apps/openhasp_helloWorld.py
     - Add openhasp_helloWorld to your YOUR_HASS_CONFIG_DIRECTORY/pyscript/config.yaml:
     ```
     pyscript:
